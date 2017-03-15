@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(ur5_controller)
+project(cpr_closed_loop_controller)
 
 ## Add support for C++11, supported in ROS Kinetic and newer
 # add_definitions(-std=c++11)
@@ -7,7 +7,16 @@ project(ur5_controller)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED)
+find_package(catkin REQUIRED COMPONENTS
+  ur_modern_driver
+  eigen_conversions
+  roscpp
+  tf
+  tf2
+  tf_conversions
+)
+
+set(CMAKE_CXX_FLAGS "-O2 -O3 -std=c++11 -Wall")
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -99,8 +108,8 @@ find_package(catkin REQUIRED)
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
-#  LIBRARIES ur5_controller
+  INCLUDE_DIRS include
+#  LIBRARIES cpr_closed_loop_controller
 #  CATKIN_DEPENDS other_catkin_pkg
 #  DEPENDS system_lib
 )
@@ -111,11 +120,21 @@ catkin_package(
 
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
-# include_directories(include)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include ${catkin_INCLUDE_DIRS})
+
+set(INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
+set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
+
+
+add_executable(cpr_closed_loop_controller_node
+                ${SRC_DIR}/cpr_closed_loop_controller_node.cpp
+                ${SRC_DIR}/CPRClosedLoopController.cpp
+                ${INCLUDE_DIR}/CPRClosedLoopController.h)
+
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
-#   src/${PROJECT_NAME}/ur5_controller.cpp
+#   src/${PROJECT_NAME}/cpr_closed_loop_controller.cpp
 # )
 
 ## Add cmake target dependencies of the library
@@ -126,7 +145,7 @@ catkin_package(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-# add_executable(${PROJECT_NAME}_node src/ur5_controller_node.cpp)
+# add_executable(${PROJECT_NAME}_node src/cpr_closed_loop_controller_node.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -139,9 +158,10 @@ catkin_package(
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
-# target_link_libraries(${PROJECT_NAME}_node
-#   ${catkin_LIBRARIES}
-# )
+target_link_libraries(cpr_closed_loop_controller_node
+  ur_hardware_interface
+   ${catkin_LIBRARIES}
+)
 
 #############
 ## Install ##
@@ -183,7 +203,7 @@ catkin_package(
 #############
 
 ## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_ur5_controller.cpp)
+# catkin_add_gtest(${PROJECT_NAME}-test test/test_cpr_closed_loop_controller.cpp)
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()
