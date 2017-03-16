@@ -7,6 +7,7 @@
 #include "geometry_msgs/PoseStamped.h"
 #include "geometry_msgs/Twist.h"
 #include "geometry_msgs/Wrench.h"
+#include "nav_msgs/Odometry.h"
 
 #include "eigen3/Eigen/Core"
 #include "eigen3/Eigen/Geometry"
@@ -42,6 +43,7 @@ namespace CPR {
 using namespace Eigen;
 
 typedef Matrix<double,6,1> Vector6d;
+typedef Matrix<double,7,1> Vector7d;
 
 class CPRClosedLoopController
 {
@@ -57,7 +59,7 @@ protected:
 
   // Robot state in cartesian space
   Vector6d cart_state_arm_;
-  Vector6d cart_state_platform_;
+  Vector7d cart_state_platform_;
   Vector6d cart_state_twist_arm_;
   Vector6d cart_state_twist_platform_;
 
@@ -93,7 +95,7 @@ protected:
   void computeVelCmd(Vector6d & desired_twist_platform,
                      Vector6d & desired_joint_vel_arm);
 
-  void odom_callback(const geometry_msgs::PoseStamped::ConstPtr& msg);
+  void odom_callback(const nav_msgs::Odometry::ConstPtr& msg);
 
 public:
   CPRClosedLoopController(ros::NodeHandle &n, double frequency,
