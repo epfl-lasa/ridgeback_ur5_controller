@@ -30,6 +30,8 @@ void CPRClosedLoopController::run() {
   // before starting the loop
   init();
 
+  ur5_arm_.start();
+
   while(nh_.ok()) {
     updateRobotState();
 
@@ -60,31 +62,38 @@ void CPRClosedLoopController::updateRobotState() {
   std::vector<double> buf;
   buf.resize(6);
   Map<const Vector6d> ret(buf.data());
+  std::cout << "Connected " << ur5_arm_.rt_interface_->connected_;
   buf = ur5_arm_.rt_interface_->robot_state_->getQActual();
   joint_state_arm_ << ret;
-  //std::cout << ur5_arm_.rt_interface_->connected_;
+  std::cout << "Joint_state " << buf.at(0);
   buf = ur5_arm_.rt_interface_->robot_state_->getQdActual();
   joint_state_vel_arm_ << ret;
-  //std::cout << buf.at(0);
+  std::cout << "Joint_state_vel "<< buf.at(0);
   buf = ur5_arm_.rt_interface_->robot_state_->getToolVectorActual();
   cart_state_arm_ << ret;
-  //std::cout << buf.at(1);
+  std::cout << "Cart_state "<< cart_state_arm_;
   buf = ur5_arm_.rt_interface_->robot_state_->getTcpSpeedActual();
   cart_state_twist_arm_ << ret;
-  //std::cout << buf.at(0);
+  std::cout << "Cart_vel "<< cart_state_twist_arm_;
   buf = ur5_arm_.rt_interface_->robot_state_->getTcpForce();
-  //ft_cart_ << ret;
+  ft_cart_ << ret;
+  std::cout << "ft_vel "<< ft_cart_;
   buf = ur5_arm_.rt_interface_->robot_state_->getToolAccelerometerValues();
-  //accel_ee_ << ret;
+  accel_ee_ << ret;;
+  std::cout << "accel_ee "<< accel_ee_;
+
 
   // Platform state is read from the odom subscriber
 }
 
 void CPRClosedLoopController::odom_callback(
-    const geometry_msgs::PoseStamped::ConstPtr& msg) {
-  cart_state_platform_ << msg->pose.position.x, msg->pose.position.y,
-      msg->pose.position.z, msg->pose.orientation.x, msg->pose.orientation.y,
-      msg->pose.orientation.z, msg->pose.orientation.w;
+    const nav_msgs::Odometry::ConstPtr& msg) {
+  cart_state_platform_ << msg->pose.pose.position.x, msg->pose.pose.position.y,
+      msg->pose.pose.position.z, msg->pose.pose.orientation.x, msg->pose.pose.orientation.y,
+      msg->pose.pose.orientation.z, msg->pose.pose.orientation.w;
+  cart_state_twist_platform_ << msg->twist.twist.linear.x, msg->twist.twist.linear.y,
+      msg->twist.twist.linear.z, msg->twist.twist.angular.x, msg->twist.twist.angular.y,
+      msg->twist.twist.angular.z;
 }
 
 // A placeholder to initialize whatever is needed for the computeVelCmd right
