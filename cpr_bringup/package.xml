@@ -47,7 +47,6 @@
   <run_depend>moveit-ros-move-group</run_depend>
   <run_depend>moveit-ros-control-interface</run_depend>
   <run_depend>moveit-ros-manipulation</run_depend>
-  <run_depend>ridgeback-desktop</run_depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->
