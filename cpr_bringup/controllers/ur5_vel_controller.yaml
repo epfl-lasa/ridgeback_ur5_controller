@@ -1,0 +1,11 @@
+ur5_cartesian_velocity_controller:
+  type: cartesian_controller/CartesianVelocityController
+  publish_rate: 150
+  root_name: ur5_arm_base_link
+  tip_name: ur5_arm_ee_link
+
+ur5_cartesian_velocity_controller_sim:
+  type: cartesian_controller/CartesianVelocityControllerSim
+  publish_rate: 150
+  root_name: ur5_arm_base_link
+  tip_name: ur5_arm_ee_link
