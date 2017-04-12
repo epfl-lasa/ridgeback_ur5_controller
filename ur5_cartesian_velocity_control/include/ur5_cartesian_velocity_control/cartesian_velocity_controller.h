@@ -4,6 +4,7 @@
 #include <ros/node_handle.h>
 #include <geometry_msgs/Twist.h>
 #include <geometry_msgs/Pose.h>
+#include <cartesian_state_msgs/PoseTwist.h>
 #include <hardware_interface/joint_command_interface.h>
 #include <controller_interface/controller.h>
 #include <kdl/chainiksolvervel_pinv.hpp>
@@ -72,12 +73,10 @@ protected:
   boost::shared_ptr<KDL::ChainIkSolverVel_pinv>       ik_vel_solver_;
 
   ros::Publisher pub_state_;
-  ros::Publisher pub_state_deriv_;
 
   KDL::FrameVel x_dot_;
   KDL::Frame x_;
-  geometry_msgs::Twist msg_twist_;
-  geometry_msgs::Pose msg_pose_;
+  cartesian_state_msgs::PoseTwist msg_state_;
 
   boost::shared_ptr<KDL::ChainFkSolverVel> fk_vel_solver_;
   boost::shared_ptr<KDL::ChainFkSolverPos> fk_pos_solver_;

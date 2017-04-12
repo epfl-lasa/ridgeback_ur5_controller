@@ -22,8 +22,7 @@ bool CartesianVelocityControllerBase<T>::init(
   sub_command_ = n.subscribe("command_cart_vel", 1,
                          &CartesianVelocityControllerBase<T>::command_cart_vel,
                          this);
-  pub_state_ = n.advertise<geometry_msgs::Pose>("ee_pose", 1);
-  pub_state_deriv_ = n.advertise<geometry_msgs::Twist>("ee_vel", 1);
+  pub_state_ = n.advertise<cartesian_state_msgs::PoseTwist>("ee_state", 1);
 
   // Variable init
   this->joint_msr_.resize(this->kdl_chain_.getNrOfJoints());
@@ -69,11 +68,10 @@ void CartesianVelocityControllerBase<T>::update(const ros::Time& time,
   fk_vel_solver_->JntToCart(this->joint_msr_, x_dot_);
   fk_pos_solver_->JntToCart(this->joint_msr_.q, x_);
 
-  tf::poseKDLToMsg(x_, msg_pose_);
-  tf::twistKDLToMsg(x_dot_.GetTwist(), msg_twist_);
+  tf::poseKDLToMsg(x_, msg_state_.pose);
+  tf::twistKDLToMsg(x_dot_.GetTwist(), msg_state_.twist);
 
-  pub_state_.publish(msg_pose_);
-  pub_state_deriv_.publish(msg_twist_);
+  pub_state_.publish(msg_state_);
 
   writeVelocityCommands(period);
 }

@@ -2,8 +2,7 @@
 #define CARTESIAN_STATE_CONTROLLER_H
 
 #include <ros/node_handle.h>
-#include <geometry_msgs/Twist.h>
-#include <geometry_msgs/Pose.h>
+#include <cartesian_state_msgs/PoseTwist.h>
 #include <hardware_interface/joint_state_interface.h>
 #include <controller_interface/controller.h>
 #include <kdl/chainfksolvervel_recursive.hpp>
@@ -54,12 +53,10 @@ public:
 
 protected:
   ros::Publisher pub_state_;
-  ros::Publisher pub_state_deriv_;
 
   KDL::FrameVel x_dot_;
   KDL::Frame x_;
-  geometry_msgs::Twist msg_twist_;
-  geometry_msgs::Pose msg_pose_;
+  cartesian_state_msgs::PoseTwist msg_state_;
 
   boost::shared_ptr<KDL::ChainFkSolverVel> fk_vel_solver_;
   boost::shared_ptr<KDL::ChainFkSolverPos> fk_pos_solver_;

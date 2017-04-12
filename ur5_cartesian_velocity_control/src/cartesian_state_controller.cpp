@@ -19,8 +19,7 @@ bool CartesianStateController::init(
   fk_vel_solver_.reset(new KDL::ChainFkSolverVel_recursive(kdl_chain_));
   fk_pos_solver_.reset(new KDL::ChainFkSolverPos_recursive(kdl_chain_));
 
-  pub_state_ = n.advertise<geometry_msgs::Twist>("ee_pose", 1);
-  pub_state_deriv_ = n.advertise<geometry_msgs::Pose>("ee_vel", 1);
+  pub_state_ = n.advertise<cartesian_state_msgs::PoseTwist>("ee_state", 1);
 
   x_.p.Zero();
   x_.M.Identity();
@@ -55,11 +54,11 @@ void CartesianStateController::update(const ros::Time& time,
   fk_vel_solver_->JntToCart(joint_msr_, x_dot_);
   fk_pos_solver_->JntToCart(joint_msr_.q, x_);
 
-  tf::poseKDLToMsg(x_, msg_pose_);
-  tf::twistKDLToMsg(x_dot_.GetTwist(), msg_twist_);
+  tf::poseKDLToMsg(x_, msg_state_.pose);
+  tf::twistKDLToMsg(x_dot_.GetTwist(), msg_state_.twist);
 
-  pub_state_.publish(msg_pose_);
-  pub_state_deriv_.publish(msg_twist_);
+  pub_state_.publish(msg_state_);
+
 }
 
 } // controller_interface
