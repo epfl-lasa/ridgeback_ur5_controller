@@ -1,0 +1,22 @@
+<?xml version="1.0" ?>
+<launch>
+  <!--
+      Launch file for the admittance controller
+  -->
+  <!-- Control and state topics -->
+  <arg name="STATE_TOPIC_ARM" default="/ur5_cartesian_velocity_controller_sim/ee_state"/>
+  <arg name="CMD_TOPIC_ARM" default="/ur5_cartesian_velocity_controller_sim/command_cart_vel" />
+  <arg name="STATE_TOPIC_PLATFORM" default="/ridgeback_velocity_controller/odom"/>
+  <arg name="CMD_TOPIC_PLATFORM" default="/cmd_vel" />
+  <arg name="WRENCH_TOPIC" default="/wrench" />
+
+  <param name="state_topic_arm" value="$(arg STATE_TOPIC_ARM)"/>
+  <param name="cmd_topic_arm" value="$(arg CMD_TOPIC_ARM)"/>
+  <param name="state_topic_platform" value="$(arg STATE_TOPIC_PLATFORM)"/>
+  <param name="cmd_topic_platform" value="$(arg CMD_TOPIC_PLATFORM)"/>
+  <param name="wrench_topic" value="$(arg WRENCH_TOPIC)"/>
+
+  <node pkg="admittance_control" name="admittance_controller"
+  type="admittance_controller_node" output="screen"/>
+
+</launch>
