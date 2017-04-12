@@ -1,7 +1,7 @@
 #include <pluginlib/class_list_macros.h>
 #include "ur5_cartesian_velocity_control/kinematic_chain_controller_base.h"
 #include "ur5_cartesian_velocity_control/cartesian_velocity_controller.h"
-
+#include "kdl_conversions/kdl_msg.h"
 
 namespace controller_interface
 {
@@ -12,16 +12,27 @@ template<typename T>
 bool CartesianVelocityControllerBase<T>::init(
     T *robot, ros::NodeHandle &n) {
 
+  // KDL
   KinematicChainControllerBase<T>::init(robot, n);
   ik_vel_solver_.reset(new KDL::ChainIkSolverVel_pinv(this->kdl_chain_));
+  fk_vel_solver_.reset(new KDL::ChainFkSolverVel_recursive(this->kdl_chain_));
+  fk_pos_solver_.reset(new KDL::ChainFkSolverPos_recursive(this->kdl_chain_));
 
+  // Topics
   sub_command_ = n.subscribe("command_cart_vel", 1,
                          &CartesianVelocityControllerBase<T>::command_cart_vel,
                          this);
+  pub_state_ = n.advertise<geometry_msgs::Pose>("ee_pose", 1);
+  pub_state_deriv_ = n.advertise<geometry_msgs::Twist>("ee_vel", 1);
 
+  // Variable init
   this->joint_msr_.resize(this->kdl_chain_.getNrOfJoints());
   q_dt_cmd_.resize(this->kdl_chain_.getNrOfJoints());
   x_dt_des_ = KDL::Twist::Zero();
+  x_.p.Zero();
+  x_.M.Identity();
+  x_dot_.p.Zero();
+  x_dot_.M.Identity();
 
   return true;
 }
@@ -55,6 +66,14 @@ void CartesianVelocityControllerBase<T>::update(const ros::Time& time,
 
   // Compute inverse kinematics velocity solver
   ik_vel_solver_->CartToJnt(this->joint_msr_.q, x_dt_des_, q_dt_cmd_);
+  fk_vel_solver_->JntToCart(this->joint_msr_, x_dot_);
+  fk_pos_solver_->JntToCart(this->joint_msr_.q, x_);
+
+  tf::poseKDLToMsg(x_, msg_pose_);
+  tf::twistKDLToMsg(x_dot_.GetTwist(), msg_twist_);
+
+  pub_state_.publish(msg_pose_);
+  pub_state_deriv_.publish(msg_twist_);
 
   writeVelocityCommands(period);
 }

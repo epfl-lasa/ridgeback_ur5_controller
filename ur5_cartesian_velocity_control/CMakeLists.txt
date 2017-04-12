@@ -17,7 +17,7 @@ find_package(catkin REQUIRED COMPONENTS
   urdf
   roscpp
   kdl_parser
-  eigen_conversions
+  kdl_conversions
 )
 
 set(CMAKE_CXX_FLAGS "-O2 -O3 -std=c++11 -mtune=native -fPIC -Wall -Wno-deprecated-declarations")
@@ -134,7 +134,9 @@ include_directories(include ${catkin_INCLUDE_DIRS})
 add_library(${PROJECT_NAME}
   include/ur5_cartesian_velocity_control/kinematic_chain_controller_base.h
   include/ur5_cartesian_velocity_control/cartesian_velocity_controller.h
+  include/ur5_cartesian_velocity_control/cartesian_state_controller.h
   src/cartesian_velocity_controller.cpp
+  src/cartesian_state_controller.cpp
 )
 
 ## Add cmake target dependencies of the library

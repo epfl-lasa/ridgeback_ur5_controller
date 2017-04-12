@@ -33,7 +33,7 @@ public:
 protected:
   ros::NodeHandle nh_;
   KDL::Chain kdl_chain_;
-  KDL::JntArrayAcc joint_msr_;
+  KDL::JntArrayVel joint_msr_;
 
   struct limits_
   {
@@ -99,7 +99,7 @@ bool KinematicChainControllerBase<JI>::init(JI *robot, ros::NodeHandle &n)
     return false;
   }
 
-  ROS_INFO("%s content\n%s", robot_description.c_str(), xml_string.c_str());
+  //ROS_INFO("%s content\n%s", robot_description.c_str(), xml_string.c_str());
 
   // Get urdf model out of robot_description
   urdf::Model model;

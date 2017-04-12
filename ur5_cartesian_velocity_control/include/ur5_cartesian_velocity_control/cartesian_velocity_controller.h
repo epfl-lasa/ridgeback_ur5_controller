@@ -3,10 +3,12 @@
 
 #include <ros/node_handle.h>
 #include <geometry_msgs/Twist.h>
+#include <geometry_msgs/Pose.h>
 #include <hardware_interface/joint_command_interface.h>
 #include <controller_interface/controller.h>
 #include <kdl/chainiksolvervel_pinv.hpp>
-
+#include <kdl/chainfksolvervel_recursive.hpp>
+#include <kdl/chainfksolverpos_recursive.hpp>
 #include "ur5_cartesian_velocity_control/kinematic_chain_controller_base.h"
 
 namespace controller_interface
@@ -68,6 +70,17 @@ protected:
   KDL::JntArray       q_dt_cmd_;      // Desired joint velocity
 
   boost::shared_ptr<KDL::ChainIkSolverVel_pinv>       ik_vel_solver_;
+
+  ros::Publisher pub_state_;
+  ros::Publisher pub_state_deriv_;
+
+  KDL::FrameVel x_dot_;
+  KDL::Frame x_;
+  geometry_msgs::Twist msg_twist_;
+  geometry_msgs::Pose msg_pose_;
+
+  boost::shared_ptr<KDL::ChainFkSolverVel> fk_vel_solver_;
+  boost::shared_ptr<KDL::ChainFkSolverPos> fk_pos_solver_;
 };
 
 /** \brief Two different instantiations of the CartesianVelocityControllerBase

@@ -1,16 +1,19 @@
 <library path="lib/libur5_cartesian_velocity_control">
-    
   <class name="cartesian_controller/CartesianVelocityController" type="controller_interface::CartesianVelocityController" base_class_type="controller_interface::ControllerBase">
     <description>
-        Cartesian velocity control of the UR5 endeffector
+        Cartesian velocity control
+    </description>
+  </class>
+
+  <class name="cartesian_controller/CartesianStateController" type="controller_interface::CartesianStateController" base_class_type="controller_interface::ControllerBase">
+    <description>
+        Cartesian state observer
     </description>
   </class>
 
   <class name="cartesian_controller/CartesianVelocityControllerSim" type="controller_interface::CartesianVelocityControllerSim" base_class_type="controller_interface::ControllerBase">
     <description>
-        Cartesian velocity control of the UR5 endeffector using a position interface. This is used in conjunction with Gazebo which, at the moment of writing this code, does not fully support a joint velocity interface. 
+        Cartesian velocity control using a position interface. This is used in conjunction with Gazebo which, at the moment of writing this code, does not fully support a joint velocity interface.
     </description>
   </class>
-
-
 </library>
