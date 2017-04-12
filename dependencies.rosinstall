@@ -2,9 +2,6 @@
     local-name: ridgeback_lasa
     uri: git@github.com:epfl-lasa/ridgeback_lasa.git
 - git:
-    local-name: ur_modern_driver
-    uri: git@github.com:jrmout/ur_modern_driver.git
-- git:
     local-name: universal_robot
     uri: git@github.com:ros-industrial/universal_robot.git
 

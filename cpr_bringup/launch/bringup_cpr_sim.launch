@@ -1,5 +1,5 @@
 <launch>
-  <arg name="gui"  default="false"/>
+  <arg name="gui"  default="true"/>
   <arg name="world_name" default="$(find cpr_bringup)/worlds/empty.world"/>
 
   <!-- MOBILE PLATFORM -->

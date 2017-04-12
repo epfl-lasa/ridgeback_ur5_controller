@@ -1,5 +1,4 @@
 ur5:
-
   # Controller for the real hardware (velocity interface)
   cartesian_velocity_controller:
     type: cartesian_controller/CartesianVelocityController
