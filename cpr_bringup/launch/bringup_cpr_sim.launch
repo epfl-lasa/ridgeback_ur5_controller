@@ -1,6 +1,9 @@
 <launch>
-  <arg name="gui"  default="true"/>
+  <arg name="gui"  default="false"/>
   <arg name="world_name" default="$(find cpr_bringup)/worlds/empty.world"/>
+
+  <!-- SET WORLD FRAME -->
+  <node pkg="tf" type="static_transform_publisher" name="link1_broadcaster" args="1 0 0 0 0 0 1 world base_link 1" />
 
   <!-- MOBILE PLATFORM -->
   <include file="$(find ridgeback_gazebo)/launch/ridgeback_world.launch">
@@ -23,5 +26,11 @@
     type="controller_manager" args="spawn ur5_cartesian_velocity_controller_sim"
       respawn="false" output="screen"/>
 
+  <!-- RVIZ -->
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find cpr_bringup)/launch/rviz/admittance_fake_wrench.rviz"/>
+
+  <!-- FAKE WRENCH -->
+  <node name="fake_wrench" pkg="cpr_bringup" type="fake_wrench.py"
+    required="true" output="screen"/>
 </launch>
 
