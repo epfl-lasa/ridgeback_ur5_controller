@@ -11,6 +11,7 @@ int main(int argc, char **argv)
   // Parameters
   std::string state_topic_arm, cmd_topic_arm,
           cmd_topic_platform, state_topic_platform, wrench_topic;
+  std::vector<double> M_p, M_a, D, D_p, D_a, K, d_e;
 
   if (!nh.getParam("state_topic_arm", state_topic_arm))
   {
@@ -42,12 +43,56 @@ int main(int argc, char **argv)
     return -1;
   }
 
+  // ADMITTANCE PARAMS
+  if (!nh.getParam("mass_platform", M_p))
+  {
+    ROS_ERROR("Couldn't retrieve the desired mass platform. ");
+    return -1;
+  }
+
+  if (!nh.getParam("mass_arm", M_a))
+  {
+    ROS_ERROR("Couldn't retrieve the desired mass of the arm. ");
+    return -1;
+  }
+
+  if (!nh.getParam("damping_coupling", D))
+  {
+    ROS_ERROR("Couldn't retrieve the desired damping of the coupling. ");
+    return -1;
+  }
+
+  if (!nh.getParam("damping_platform", D_p))
+  {
+    ROS_ERROR("Couldn't retrieve the desired damping of the platform. ");
+    return -1;
+  }
+
+  if (!nh.getParam("damping_arm", D_a))
+  {
+    ROS_ERROR("Couldn't retrieve the desired damping of the arm. ");
+    return -1;
+  }
+
+  if (!nh.getParam("stiffness_coupling", K))
+  {
+    ROS_ERROR("Couldn't retrieve the desired stiffness of the coupling. ");
+    return -1;
+  }
+
+  if (!nh.getParam("equilibrium_point_spring", d_e))
+  {
+    ROS_ERROR("Couldn't retrieve the desired equilibrium point of the coupling spring. ");
+    return -1;
+  }
+
   AdmittanceController admittance_controller(nh, frequency,
                                              cmd_topic_platform,
                                              state_topic_platform,
                                              cmd_topic_arm,
                                              state_topic_arm,
-                                             wrench_topic);
+                                             wrench_topic, M_p, M_a,
+                                             D, D_p, D_a, K, d_e);
   admittance_controller.run();
 
   return 0;

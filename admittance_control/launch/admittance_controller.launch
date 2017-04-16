@@ -9,12 +9,15 @@
   <arg name="STATE_TOPIC_PLATFORM" default="/ridgeback_velocity_controller/odom"/>
   <arg name="CMD_TOPIC_PLATFORM" default="/cmd_vel" />
   <arg name="WRENCH_TOPIC" default="/wrench" />
+  <arg name="ADMITTANCE_PARAMS_FILE" default="$(find admittance_control)/config/admittance_params.yaml" />
 
   <param name="state_topic_arm" value="$(arg STATE_TOPIC_ARM)"/>
   <param name="cmd_topic_arm" value="$(arg CMD_TOPIC_ARM)"/>
   <param name="state_topic_platform" value="$(arg STATE_TOPIC_PLATFORM)"/>
   <param name="cmd_topic_platform" value="$(arg CMD_TOPIC_PLATFORM)"/>
   <param name="wrench_topic" value="$(arg WRENCH_TOPIC)"/>
+
+  <rosparam file="$(arg ADMITTANCE_PARAMS_FILE)" command="load"/>
 
   <node pkg="admittance_control" name="admittance_controller"
   type="admittance_controller_node" output="screen"/>
