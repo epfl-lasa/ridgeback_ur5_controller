@@ -1,0 +1,78 @@
+<launch>
+  <arg name="use_sim_time" default="true" />
+  <arg name="gui" default="true" />
+  <arg name="paused" default="false" />
+  <arg name="headless" default="false" />
+  <arg name="world_name" default="$(find ridgeback_gazebo)/worlds/ridgeback_race.world" />
+
+  <!-- Configuration of Ridgeback which you would like to simulate.
+       See ridgeback_description for details. -->
+  <arg name="config" default="base" />
+
+  <!-- Launch Gazebo with the specified world -->
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="paused" value="$(arg paused)" />
+    <arg name="debug" value="0" />
+    <arg name="gui" value="$(arg gui)" />
+    <arg name="use_sim_time" value="$(arg use_sim_time)" />
+    <arg name="headless" value="$(arg headless)" />
+    <arg name="world_name" value="$(arg world_name)" />
+  </include>
+
+  <!-- FULL ROBOT DESCRIPTION -->
+  <include file="$(find ridgeback_description)/launch/description.launch">
+    <arg name="config" value="$(arg config)" />
+  </include>
+
+  <!-- RIDGEBACK PLATFORM CONTROLLERS-->
+  <rosparam command="load" file="$(find ridgeback_control)/config/control.yaml" />
+
+  <node name="ridgeback_controller_spawner" pkg="controller_manager" type="controller_manager"
+    args="load ridgeback_joint_publisher ridgeback_velocity_controller"
+    respawn="false" output="screen"/>
+
+  <node pkg="robot_localization" type="ekf_localization_node" name="ekf_localization" />
+
+  <node pkg="topic_tools" type="relay" name="cmd_vel_relay"
+    args="cmd_vel ridgeback_velocity_controller/cmd_vel" />
+
+  <rosparam param="/gazebo_ros_control/pid_gains">
+    front_left_wheel:
+      p: 1
+      i: 0.1
+      d: 0
+    front_right_wheel:
+      p: 1
+      i: 0.1
+      d: 0
+    rear_left_wheel:
+      p: 1
+      i: 0.1
+      d: 0
+    rear_right_wheel:
+      p: 1
+      i: 0.1
+      d: 0
+  </rosparam>
+
+  <!-- UR5 ARM CONTROLLERS-->
+  <!-- Fake Calibration -->
+  <node pkg="rostopic" type="rostopic" name="fake_joint_calibration"
+        args="pub /calibrated std_msgs/Bool true" />
+
+  <!-- joint_state_controller (to publish states, an observer) -->
+  <rosparam file="$(find cpr_bringup)/controllers/joint_state_controller.yaml" command="load"/>
+  <node name="joint_state_controller_spawner" pkg="controller_manager"
+    type="controller_manager" args="load joint_state_controller" respawn="false" output="screen"/>
+
+  <!-- arm controller (to send commands to the arm) Uses the simulated velocity control
+    interface to gazebo -->
+  <rosparam file="$(find cpr_bringup)/controllers/ur5_vel_controller.yaml" command="load"/>
+  <node name="arm_controller_spawner" pkg="controller_manager"
+    type="controller_manager" args="load ur5_cartesian_velocity_controller_sim"
+      respawn="false" output="screen"/>
+
+  <!-- SPAWN FULL ROBOT -->
+  <node name="urdf_spawner" pkg="gazebo_ros" type="spawn_model"
+        args="-urdf -model ridgeback -param robot_description -x 0 -y 0 -z 0.1" />
+</launch>
