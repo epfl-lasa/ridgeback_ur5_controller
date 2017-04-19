@@ -1,0 +1,9 @@
+<launch>
+  <rosparam file="$(find cpr_bringup)/launch/config/initial_pose.yaml" command="load"/>
+
+  <!-- SET INITIAL POSE -->
+  <node name="set_initial_pose_node" pkg="cpr_bringup" type="init_pose_start_controllers.py"
+     output="screen"/>
+
+</launch>
+
