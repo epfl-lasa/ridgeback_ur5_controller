@@ -1,2 +1,0 @@
-#!/bin/bash
-rosservice call /gazebo/set_model_configuration '{ model_name: "ridgeback", urdf_param_name: "robot_description", joint_names: [ "ur5_arm_elbow_joint", "ur5_arm_shoulder_lift_joint", "ur5_arm_shoulder_pan_joint", "ur5_arm_wrist_1_joint", "ur5_arm_wrist_2_joint", "ur5_arm_wrist_3_joint"], joint_positions: [1.2937181473386596,-0.9998039803657388, 1.549433454173772, 3.1415906290824704, -0.23752389958375986, 2.2786922321771] }'
