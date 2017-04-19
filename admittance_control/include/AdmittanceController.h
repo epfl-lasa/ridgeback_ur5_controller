@@ -4,7 +4,7 @@
 #include "ros/ros.h"
 
 #include "cartesian_state_msgs/PoseTwist.h"
-#include "geometry_msgs/Wrench.h"
+#include "geometry_msgs/WrenchStamped.h"
 #include "nav_msgs/Odometry.h"
 #include <tf/transform_datatypes.h>
 
@@ -102,7 +102,7 @@ protected:
 
   void state_platform_callback(const nav_msgs::OdometryConstPtr msg);
   void state_arm_callback(const cartesian_state_msgs::PoseTwistConstPtr msg);
-  void wrench_callback(const geometry_msgs::WrenchConstPtr msg);
+  void wrench_callback(const geometry_msgs::WrenchStampedConstPtr msg);
 
 public:
   AdmittanceController(ros::NodeHandle &n, double frequency,

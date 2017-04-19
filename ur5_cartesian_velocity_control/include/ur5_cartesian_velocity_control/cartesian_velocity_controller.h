@@ -8,6 +8,7 @@
 #include <hardware_interface/joint_command_interface.h>
 #include <controller_interface/controller.h>
 #include <kdl/chainiksolvervel_pinv.hpp>
+#include <kdl/chainiksolvervel_pinv_givens.hpp>
 #include <kdl/chainfksolvervel_recursive.hpp>
 #include <kdl/chainfksolverpos_recursive.hpp>
 #include "ur5_cartesian_velocity_control/kinematic_chain_controller_base.h"
@@ -70,7 +71,7 @@ protected:
   KDL::Twist       x_dt_des_;      // Desired end-effector velocity
   KDL::JntArray       q_dt_cmd_;      // Desired joint velocity
 
-  boost::shared_ptr<KDL::ChainIkSolverVel_pinv>       ik_vel_solver_;
+  boost::shared_ptr<KDL::ChainIkSolverVel>       ik_vel_solver_;
 
   ros::Publisher pub_state_;
 

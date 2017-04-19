@@ -203,6 +203,19 @@ Visualization Manager:
       Show Visual Aids: false
       Update Topic: /fake_force_sensor/update
       Value: true
+    - Alpha: 1
+      Arrow Width: 0.5
+      Class: rviz/WrenchStamped
+      Enabled: true
+      Force Arrow Scale: 2
+      Force Color: 204; 51; 51
+      History Length: 1
+      Name: WrenchStamped
+      Topic: /wrench
+      Torque Arrow Scale: 2
+      Torque Color: 204; 204; 51
+      Unreliable: false
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -239,10 +252,10 @@ Visualization Manager:
         Z: 0
       Name: Current View
       Near Clip Distance: 0.01
-      Pitch: 0.409796
+      Pitch: 0.344796
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 6.20358
+      Yaw: 5.23858
     Saved: ~
 Window Geometry:
   Displays:
@@ -260,5 +273,5 @@ Window Geometry:
   Views:
     collapsed: false
   Width: 1200
-  X: 615
-  Y: 112
+  X: 595
+  Y: 92

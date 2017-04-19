@@ -6,7 +6,7 @@
   <!-- Control and state topics -->
   <arg name="STATE_TOPIC_ARM" default="/ur5_cartesian_velocity_controller_sim/ee_state"/>
   <arg name="CMD_TOPIC_ARM" default="/ur5_cartesian_velocity_controller_sim/command_cart_vel" />
-  <arg name="STATE_TOPIC_PLATFORM" default="/ridgeback_velocity_controller/odom"/>
+  <arg name="STATE_TOPIC_PLATFORM" default="/odometry/filtered"/>
   <arg name="CMD_TOPIC_PLATFORM" default="/cmd_vel" />
   <arg name="WRENCH_TOPIC" default="/wrench" />
   <arg name="ADMITTANCE_PARAMS_FILE" default="$(find admittance_control)/config/admittance_params.yaml" />

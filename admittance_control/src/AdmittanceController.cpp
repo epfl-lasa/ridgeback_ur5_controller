@@ -52,7 +52,7 @@ void AdmittanceController::run() {
   while(nh_.ok()) {
     // Dynamics computation
     compute_admittance(desired_twist_platform, desired_twist_arm,
-                       loop_rate_.cycleTime());
+                       loop_rate_.expectedCycleTime());
 
     // Copy commands to messages
     platform_twist_cmd.linear.x = desired_twist_platform(0);
@@ -70,7 +70,7 @@ void AdmittanceController::run() {
     arm_twist_cmd.angular.z = desired_twist_arm(5);
 
     platform_pub_.publish(platform_twist_cmd);
-    arm_pub_.publish(platform_twist_cmd);
+    arm_pub_.publish(arm_twist_cmd);
 
     ros::spinOnce();
 
@@ -86,11 +86,20 @@ void AdmittanceController::compute_admittance(Vector6d &desired_twist_platform,
   x_ddot_p = M_p_.inverse()*( D_*(x_dot_a_)
                              - D_p_ * x_dot_p_ + K_ * (d_e_ - x_a_));
   x_ddot_a = M_a_.inverse()*( - D_*(x_dot_a_)
-                             - D_a_ * x_dot_a_ - K_ * (d_e_ - x_a_));
+                             - D_a_ * x_dot_a_- K_ * (d_e_ - x_a_) + u_e_);
 
   // Integrate for velocity based interface
   desired_twist_platform = x_dot_p_ + x_ddot_p * duration.toSec();
   desired_twist_arm = x_dot_a_ + x_ddot_a * duration.toSec();
+
+  desired_twist_platform.setZero();
+  desired_twist_arm = u_e_;
+  desired_twist_arm(3) = 0;
+  desired_twist_arm(4) = 0;
+  desired_twist_arm(5) = 0;
+
+  std::cout << "Desired twist arm: " << desired_twist_arm << std::endl;
+  std::cout << "Desired twist platform: " << desired_twist_platform << std::endl;
 }
 
 // CALLBACKS
@@ -126,7 +135,7 @@ void AdmittanceController::state_arm_callback(
 }
 
 void AdmittanceController::wrench_callback(
-    const geometry_msgs::WrenchConstPtr msg) {
-  u_e_ << msg->force.x, msg->force.y, msg->force.z, msg->torque.x,
-    msg->torque.y, msg->torque.z;
+    const geometry_msgs::WrenchStampedConstPtr msg) {
+  u_e_ << msg->wrench.force.x, msg->wrench.force.y, msg->wrench.force.z,
+          msg->wrench.torque.x, msg->wrench.torque.y, msg->wrench.torque.z;
 }

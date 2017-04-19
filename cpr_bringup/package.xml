@@ -39,14 +39,10 @@
   <!-- Use test_depend for packages you need only for testing: -->
   <!--   <test_depend>gtest</test_depend> -->
   <buildtool_depend>catkin</buildtool_depend>
+  <run_depend>gazebo_msgs</run_depend>
+  <run_depend>controller_manager_msgs</run_depend>
   <run_depend>soem</run_depend>
   <run_depend>robotiq_modbus_tcp</run_depend>
-  <run_depend>moveit-planners</run_depend>
-  <run_depend>moveit-planners-ompl</run_depend>
-  <run_depend>moveit-ros-planning</run_depend>
-  <run_depend>moveit-ros-move-group</run_depend>
-  <run_depend>moveit-ros-control-interface</run_depend>
-  <run_depend>moveit-ros-manipulation</run_depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->

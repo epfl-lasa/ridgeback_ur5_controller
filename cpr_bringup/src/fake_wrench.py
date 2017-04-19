@@ -17,20 +17,20 @@ wrench_pub = None
 
 def frameCallback( msg ):
     try:
-        listener.waitForTransform("/FT300_link", "/world", rospy.Time(0), rospy.Duration(7.0))
-        (trans,rot1) = listener.lookupTransform("/FT300_link", "/world", rospy.Time(0))
+        listener.waitForTransform("/world", "/ur5_arm_ee_link", rospy.Time(0), rospy.Duration(7.0))
+        (trans,rot1) = listener.lookupTransform("/world", "/ur5_arm_ee_link", rospy.Time(0))
         # Publish the fake force
         fake_wrench = geometry_msgs.msg.WrenchStamped()
-        fake_wrench.wrench.force.x = trans[0] - marker_pose.translation.x
-        fake_wrench.wrench.force.y = trans[1] - marker_pose.translation.y
-        fake_wrench.wrench.force.z = trans[2] - marker_pose.translation.z
+        fake_wrench.wrench.force.x = marker_pose.translation.x - trans[0]
+        fake_wrench.wrench.force.y = marker_pose.translation.y - trans[1]
+        fake_wrench.wrench.force.z = marker_pose.translation.z - trans[2]
         rot = (marker_pose.rotation.x, marker_pose.rotation.y,
                 marker_pose.rotation.z, marker_pose.rotation.w)
         euler = tf.transformations.euler_from_quaternion(rot)
         fake_wrench.wrench.torque.x = euler[0]
         fake_wrench.wrench.torque.y = euler[1]
         fake_wrench.wrench.torque.z = euler[2]
-        fake_wrench.header.frame_id = "FT300_link"
+        fake_wrench.header.frame_id = "world"
         fake_wrench.header.stamp = rospy.Time(0)
         wrench_pub.publish(fake_wrench)
     except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
@@ -81,8 +81,8 @@ def processFeedback(feedback, br):
                          feedback.pose.position.z),
                          (0, 0, 0, 1),
                          rospy.Time.now(),
-                         "fake_force_pose",
-                         "world")
+                         "world",
+                         "fake_force_pose")
         marker_pose.translation.x = feedback.pose.position.x
         marker_pose.translation.y = feedback.pose.position.y
         marker_pose.translation.z = feedback.pose.position.z

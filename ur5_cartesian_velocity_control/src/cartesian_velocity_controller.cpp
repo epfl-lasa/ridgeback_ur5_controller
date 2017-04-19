@@ -14,7 +14,7 @@ bool CartesianVelocityControllerBase<T>::init(
 
   // KDL
   KinematicChainControllerBase<T>::init(robot, n);
-  ik_vel_solver_.reset(new KDL::ChainIkSolverVel_pinv(this->kdl_chain_));
+  ik_vel_solver_.reset(new KDL::ChainIkSolverVel_pinv_givens(this->kdl_chain_));
   fk_vel_solver_.reset(new KDL::ChainFkSolverVel_recursive(this->kdl_chain_));
   fk_pos_solver_.reset(new KDL::ChainFkSolverPos_recursive(this->kdl_chain_));
 

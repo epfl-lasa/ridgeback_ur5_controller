@@ -6,7 +6,7 @@ int main(int argc, char **argv)
   ros::init(argc, argv, "admittance_controller_node");
 
   ros::NodeHandle nh;
-  double frequency = 300.0;
+  double frequency = 125.0;
 
   // Parameters
   std::string state_topic_arm, cmd_topic_arm,
