@@ -6,6 +6,7 @@ Panels:
       Expanded:
         - /Global Options1
         - /Status1
+        - /TF1/Frames1
       Splitter Ratio: 0.5
     Tree Height: 565
   - Class: rviz/Selection
@@ -216,6 +217,20 @@ Visualization Manager:
       Torque Color: 204; 204; 51
       Unreliable: false
       Value: true
+    - Class: rviz/TF
+      Enabled: false
+      Frame Timeout: 15
+      Frames:
+        All Enabled: true
+      Marker Scale: 1
+      Name: TF
+      Show Arrows: true
+      Show Axes: true
+      Show Names: true
+      Tree:
+        {}
+      Update Interval: 0
+      Value: false
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -252,10 +267,10 @@ Visualization Manager:
         Z: 0
       Name: Current View
       Near Clip Distance: 0.01
-      Pitch: 0.344796
+      Pitch: 0.684796
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 5.23858
+      Yaw: 5.29358
     Saved: ~
 Window Geometry:
   Displays:
@@ -273,5 +288,5 @@ Window Geometry:
   Views:
     collapsed: false
   Width: 1200
-  X: 595
-  Y: 92
+  X: 575
+  Y: 72
