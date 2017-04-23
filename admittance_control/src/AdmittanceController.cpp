@@ -22,23 +22,36 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
                                               D_a_(D_a.data()), K_(K.data()),
                                               d_e_(d_e.data()) {
   platform_pub_ = nh_.advertise<geometry_msgs::Twist>(cmd_topic_platform, 1);
-  platform_sub_ = nh_.subscribe(state_topic_platform, 5,
+  platform_sub_ = nh_.subscribe(state_topic_platform, 1,
                           &AdmittanceController::state_platform_callback, this,
                           ros::TransportHints().reliable().tcpNoDelay());
-  wrench_sub_ = nh_.subscribe(wrench_topic, 5,
+  wrench_sub_ = nh_.subscribe(wrench_topic, 1,
                           &AdmittanceController::wrench_callback, this,
                           ros::TransportHints().reliable().tcpNoDelay());
   arm_pub_ = nh_.advertise<geometry_msgs::Twist>(cmd_topic_arm, 1);
-  arm_sub_ = nh_.subscribe(state_topic_arm, 5,
+  arm_sub_ = nh_.subscribe(state_topic_arm, 1,
                           &AdmittanceController::state_arm_callback, this,
                           ros::TransportHints().reliable().tcpNoDelay());
-  std::cout << M_p_ << std::endl;
-  std::cout << M_a_ << std::endl;
-  std::cout << D_ << std::endl;
-  std::cout << D_p_ << std::endl;
-  std::cout << D_a_ << std::endl;
-  std::cout << K_ << std::endl;
-  std::cout << d_e_ << std::endl;
+
+  // Get transform from arm base link to platform base link
+  tf::TransformListener listener;
+  tf::StampedTransform transform;
+  Eigen::Matrix3d rotation_base;
+  try{
+    listener.waitForTransform("/ur5_arm_base_link","/base_link",
+                              ros::Time(0), ros::Duration(10.0) );
+    listener.lookupTransform( "/ur5_arm_base_link","/base_link",
+              ros::Time(0), transform);
+  }
+  catch (tf::TransformException ex) {
+    ROS_ERROR("%s",ex.what());
+    ros::Duration(1.0).sleep();
+  }
+  tf::matrixTFToEigen(transform.getBasis().inverse(), rotation_base);
+
+  rotation_base_.setZero();
+  rotation_base_.topLeftCorner(3, 3) = rotation_base;
+  rotation_base_.bottomRightCorner(3, 3) = rotation_base;
 }
 
 // Control loop
@@ -83,20 +96,14 @@ void AdmittanceController::compute_admittance(Vector6d &desired_twist_platform,
                                             Vector6d &desired_twist_arm,
                                             ros::Duration duration) {
   Vector6d x_ddot_p, x_ddot_a;
-  x_ddot_p = M_p_.inverse()*( D_*(x_dot_a_)
-                             - D_p_ * x_dot_p_ + K_ * (d_e_ - x_a_));
+  x_ddot_p = M_p_.inverse()*(- D_*(rotation_base_* x_dot_a_)
+                 - (D_p_ * x_dot_p_) - K_  * (rotation_base_* (d_e_ - x_a_)) );
   x_ddot_a = M_a_.inverse()*( - D_*(x_dot_a_)
-                             - D_a_ * x_dot_a_- K_ * (d_e_ - x_a_) + u_e_);
+                             - (D_a_ * x_dot_a_) + K_ * (d_e_ - x_a_) + u_e_);
 
   // Integrate for velocity based interface
   desired_twist_platform = x_dot_p_ + x_ddot_p * duration.toSec();
   desired_twist_arm = x_dot_a_ + x_ddot_a * duration.toSec();
-
-  desired_twist_platform.setZero();
-  desired_twist_arm = u_e_;
-  desired_twist_arm(3) = 0;
-  desired_twist_arm(4) = 0;
-  desired_twist_arm(5) = 0;
 
   std::cout << "Desired twist arm: " << desired_twist_arm << std::endl;
   std::cout << "Desired twist platform: " << desired_twist_platform << std::endl;

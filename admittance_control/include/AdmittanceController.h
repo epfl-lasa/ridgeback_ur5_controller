@@ -7,6 +7,8 @@
 #include "geometry_msgs/WrenchStamped.h"
 #include "nav_msgs/Odometry.h"
 #include <tf/transform_datatypes.h>
+#include <tf_conversions/tf_eigen.h>
+#include <tf/transform_listener.h>
 
 #include "eigen3/Eigen/Core"
 #include "eigen3/Eigen/Geometry"
@@ -30,8 +32,8 @@
 // controller, but the current implementation of ROS control in 
 // indigo requires writing a specific interface for this matter. 
 // The kinetic version of ROS control enables controllers with 
-// multiple interfaces (FT sensor, platform and arm), but a ROS
-// control implementation of this controller remains future work.
+// multiple interfaces (FT sensor, platform and arm), but a proper
+// ROS control implementation of this controller remains future work.
 //
 // USAGE EXAMPLE;
 // ros::NodeHandle nh;
@@ -76,11 +78,17 @@ protected:
 
   // STATE VARIABLES:
   // x_p_, x_dot_p_, x_ddot_p -> Platform state and time derivatives
+  //                             (in platform base_link)
   // x_a_, x_dot_a_, x_ddot_a -> Arm state and time derivatives
+  //                             (in ur5_arm_base_link frame)
   // u_e_ -> external wrench (force/torque sensor)
+  //         (in ur5_arm_base_link frame)
   Vector6d x_a_, x_dot_a_;
   Vector6d x_p_, x_dot_p_;
   Vector6d u_e_;
+
+  Matrix6d rotation_base_; // Transform from base_link to
+                                         // ur5_arm_base_link
 
   // ADMITTANCE PARAMETERS:
   // M_p_, M_a_ -> Desired mass of platform/arm
