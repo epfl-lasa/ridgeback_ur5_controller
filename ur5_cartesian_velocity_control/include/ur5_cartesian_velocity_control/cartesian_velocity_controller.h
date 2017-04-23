@@ -12,6 +12,7 @@
 #include <kdl/chainfksolvervel_recursive.hpp>
 #include <kdl/chainfksolverpos_recursive.hpp>
 #include "ur5_cartesian_velocity_control/kinematic_chain_controller_base.h"
+#include <realtime_tools/realtime_publisher.h>
 
 namespace controller_interface
 {
@@ -68,12 +69,16 @@ public:
 protected:
   ros::Subscriber sub_command_; // Interface to external commands
 
-  KDL::Twist       x_dt_des_;      // Desired end-effector velocity
-  KDL::JntArray       q_dt_cmd_;      // Desired joint velocity
+  KDL::Twist x_dt_des_;      // Desired end-effector velocity
+  KDL::JntArray q_dt_cmd_;      // Desired joint velocity
 
-  boost::shared_ptr<KDL::ChainIkSolverVel>       ik_vel_solver_;
+  boost::shared_ptr<KDL::ChainIkSolverVel> ik_vel_solver_;
 
-  ros::Publisher pub_state_;
+  boost::shared_ptr<realtime_tools::RealtimePublisher<
+     cartesian_state_msgs::PoseTwist> > realtime_pub_;
+
+  ros::Time last_publish_time_;
+  double publish_rate_;
 
   KDL::FrameVel x_dot_;
   KDL::Frame x_;

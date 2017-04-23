@@ -8,6 +8,7 @@
 #include <kdl/chainfksolvervel_recursive.hpp>
 #include <kdl/chainfksolverpos_recursive.hpp>
 #include "ur5_cartesian_velocity_control/kinematic_chain_controller_base.h"
+#include <realtime_tools/realtime_publisher.h>
 
 namespace controller_interface
 {
@@ -56,10 +57,15 @@ protected:
 
   KDL::FrameVel x_dot_;
   KDL::Frame x_;
-  cartesian_state_msgs::PoseTwist msg_state_;
 
   boost::shared_ptr<KDL::ChainFkSolverVel> fk_vel_solver_;
   boost::shared_ptr<KDL::ChainFkSolverPos> fk_pos_solver_;
+
+  boost::shared_ptr<realtime_tools::RealtimePublisher<
+     cartesian_state_msgs::PoseTwist> > realtime_pub_;
+
+  ros::Time last_publish_time_;
+  double publish_rate_;
 };
 
 } // namespace controller_interface
