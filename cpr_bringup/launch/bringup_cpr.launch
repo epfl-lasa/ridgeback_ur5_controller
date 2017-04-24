@@ -1,0 +1,49 @@
+<launch>
+  <!-- PARAMS -->
+  <arg name="gui" default="false"/>
+  <arg name="sim" default="true"/>
+  <arg name="gazebo_paused" default="true"/>
+  <arg name="world_name" default="$(find cpr_bringup)/worlds/empty.world"/>
+
+  <!-- SET WORLD FRAME -->
+  <node pkg="tf" type="static_transform_publisher" name="link1_broadcaster" 
+    args="0 0 0 0 0 0 1 world odom 1" />
+
+  <!-- BRINGUP ROBOT -->
+  <group if="$(arg sim)" >
+    <!-- Gazebo -->
+    <include file="$(find cpr_bringup)/launch/cpr_world.launch">
+      <arg name="paused" value="$(arg gazebo_paused)"/>
+      <arg name="gui" value="$(arg gui)"/>
+      <arg name="world_name" value="$(arg world_name)"/>
+    </include>
+  </group>
+  <group unless="$(arg sim)">
+    <!-- Real robot -->
+    <!-- We only need to launch the arm. The platform is already runnning
+         as it launches at startup (Check /opt/ros/indigo/init.d/) -->
+    <include file="$(find epfl01)/ur5+FT.launch">
+  </group>
+
+  <!-- RVIZ -->
+  <node name="rviz" pkg="rviz" type="rviz"
+    args="-d $(find cpr_bringup)/launch/rviz/admittance_fake_wrench.rviz"/>
+
+
+  <group if="$(arg sim)">
+    <!-- FAKE WRENCH -->
+    <node name="fake_wrench" pkg="cpr_bringup" type="fake_wrench.py"
+      required="true" output="screen"/>
+
+    <!-- SET INITIAL POSE AND START CONTROLLERS-->
+    <!-- To make sure gazebo is already loaded, they are launched 6 secs
+         after the initial roslaunch -->
+    <node pkg="cpr_bringup" type="timed_roslaunch.sh"
+      args="6 cpr_bringup init_pose_start_controllers.launch"
+      name="timed_start_controllers" output="screen">
+  </node>
+
+  </group>
+
+</launch>
+
