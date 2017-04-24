@@ -4,4 +4,7 @@
 - git:
     local-name: universal_robot
     uri: git@github.com:ros-industrial/universal_robot.git
-
+    
+- git:
+    local-name: ridgeback_simulator
+    uri: git@github.com:ridgeback/ridgeback_simulator.git
