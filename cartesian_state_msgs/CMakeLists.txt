@@ -2,6 +2,9 @@ cmake_minimum_required(VERSION 2.8.3)
 project(cartesian_state_msgs)
 
 find_package(catkin REQUIRED COMPONENTS
+  roscpp
+  rospy
+  std_msgs
   geometry_msgs
   message_generation
 )
