@@ -14,7 +14,6 @@
 #include "eigen3/Eigen/Geometry"
 #include "eigen3/Eigen/Dense"
 
-#include "ur_modern_driver/ur_driver.h"
 
 // AdmittanceController class //
 // A simple class implementing an admittance

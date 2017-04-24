@@ -111,7 +111,7 @@ set(CMAKE_CXX_FLAGS "-O2 -O3 -std=c++11 -Wall")
 catkin_package(
   INCLUDE_DIRS include
 #  LIBRARIES cpr_closed_loop_controller
-#  CATKIN_DEPENDS other_catkin_pkg
+  CATKIN_DEPENDS cartesian_state_msgs
 #  DEPENDS system_lib
 )
 
@@ -142,7 +142,7 @@ add_executable(admittance_controller_node
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
 ## either from message generation or dynamic reconfigure
-# add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+#add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
@@ -157,7 +157,7 @@ add_executable(admittance_controller_node
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
-# add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(admittance_controller_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(admittance_controller_node
