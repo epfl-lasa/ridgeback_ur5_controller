@@ -46,7 +46,8 @@
 
     <!-- For Reference, way to launch FT and gripper nodes: -->
     <node name="ft_sensor" pkg="robotiq_force_torque_sensor" 
-      type="rq_sensor" respawn="true" output="screen" />
+      type="rq_sensor" respawn="true" output="screen" >
+      <remap from="robotiq_force_torque_wrench" to="wrench"/>
 
     <!-- Bias the F/T sensor at startup -->
     <node pkg="rosservice" type="rosservice" name="ft_sensor_biaser" 
