@@ -119,7 +119,7 @@
   <!-- joint_state_controller (to publish states, an observer) -->
   <rosparam file="$(find cpr_bringup)/controllers/joint_state_controller.yaml" command="load"/>
   <node name="joint_state_controller_spawner" pkg="controller_manager"
-    type="controller_manager" args="spawn joint_state_controller" respawn="false" output="screen"/>
+    type="controller_manager" args="load joint_state_controller" respawn="false" output="screen"/>
 
   <!-- arm controller (to send commands to the arm) Uses the simulated velocity control
     interface to gazebo -->
@@ -127,14 +127,14 @@
 
   <group if="$(arg sim)">
     <node name="arm_controller_spawner" pkg="controller_manager"
-      type="controller_manager" args="spawn ur5_cartesian_velocity_controller_sim"
+      type="controller_manager" args="load ur5_cartesian_velocity_controller_sim"
       respawn="false" output="screen"/>
   </group>
 
   <group unless="$(arg sim)">
   <!-- spawn controller manager -->
     <node name="arm_controller_spawner" pkg="controller_manager"
-      type="controller_manager" args="spawn ur5_cartesian_velocity_controller"
+      type="controller_manager" args="load ur5_cartesian_velocity_controller"
       respawn="false" output="screen"/>
   </group>
 </launch>

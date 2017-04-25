@@ -7,6 +7,7 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
                                               std::string cmd_topic_arm,
                                               std::string state_topic_arm,
                                               std::string wrench_topic,
+                                              std::string wrench_control_topic,
                                               std::vector<double> M_p,
                                               std::vector<double> M_a,
                                               std::vector<double> D,
@@ -28,6 +29,9 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
   wrench_sub_ = nh_.subscribe(wrench_topic, 1,
                           &AdmittanceController::wrench_callback, this,
                           ros::TransportHints().reliable().tcpNoDelay());
+  wrench_sub_ = nh_.subscribe(wrench_control_topic, 1,
+                          &AdmittanceController::wrench_control_callback, this,
+                          ros::TransportHints().reliable().tcpNoDelay());
   arm_pub_ = nh_.advertise<geometry_msgs::Twist>(cmd_topic_arm, 1);
   arm_sub_ = nh_.subscribe(state_topic_arm, 1,
                           &AdmittanceController::state_arm_callback, this,
@@ -37,16 +41,24 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
   tf::TransformListener listener;
   tf::StampedTransform transform;
   Eigen::Matrix3d rotation_base;
-  try{
-    listener.waitForTransform("/ur5_arm_base_link","/base_link",
-                              ros::Time(0), ros::Duration(10.0) );
-    listener.lookupTransform( "/ur5_arm_base_link","/base_link",
-              ros::Time(0), transform);
+  ros::Time now = ros::Time::now();
+  bool success = false;
+
+  while (!success) {
+    try{
+      listener.waitForTransform("/ur5_arm_base_link","/base_link",
+                              now, ros::Duration(10.0) );
+      listener.lookupTransform( "/ur5_arm_base_link","/base_link",
+              now, transform);
+      success = true;
+    }
+    catch (tf::TransformException ex) {
+      ROS_ERROR("%s",ex.what());
+      ros::Duration(1.0).sleep();
+    }
+    sleep(0.1);
   }
-  catch (tf::TransformException ex) {
-    ROS_ERROR("%s",ex.what());
-    ros::Duration(1.0).sleep();
-  }
+
   tf::matrixTFToEigen(transform.getBasis().inverse(), rotation_base);
 
   rotation_base_.setZero();
@@ -99,7 +111,7 @@ void AdmittanceController::compute_admittance(Vector6d &desired_twist_platform,
   x_ddot_p = M_p_.inverse()*(- D_*(rotation_base_* x_dot_a_)
                  - (D_p_ * x_dot_p_) - K_  * (rotation_base_* (d_e_ - x_a_)) );
   x_ddot_a = M_a_.inverse()*( - D_*(x_dot_a_)
-                             - (D_a_ * x_dot_a_) + K_ * (d_e_ - x_a_) + u_e_);
+                             - (D_a_ * x_dot_a_) + K_ * (d_e_ - x_a_) + u_e_ + u_c_);
 
   // Integrate for velocity based interface
   desired_twist_platform = x_dot_p_ + x_ddot_p * duration.toSec();
@@ -144,5 +156,11 @@ void AdmittanceController::state_arm_callback(
 void AdmittanceController::wrench_callback(
     const geometry_msgs::WrenchStampedConstPtr msg) {
   u_e_ << msg->wrench.force.x, msg->wrench.force.y, msg->wrench.force.z,
+          msg->wrench.torque.x, msg->wrench.torque.y, msg->wrench.torque.z;
+}
+
+void AdmittanceController::wrench_control_callback(
+    const geometry_msgs::WrenchStampedConstPtr msg) {
+  u_c_ << msg->wrench.force.x, msg->wrench.force.y, msg->wrench.force.z,
           msg->wrench.torque.x, msg->wrench.torque.y, msg->wrench.torque.z;
 }

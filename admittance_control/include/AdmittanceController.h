@@ -72,8 +72,10 @@ protected:
   ros::Publisher arm_pub_;
   // Subscriber for the arm state
   ros::Subscriber arm_sub_;
-  // Subscriber for the wrench at the endeffector
+  // Subscriber for the ft sensor at the endeffector
   ros::Subscriber wrench_sub_;
+  // Subscriber for the ft sensor at the endeffector
+  ros::Subscriber wrench_control_sub_;
 
   // STATE VARIABLES:
   // x_p_, x_dot_p_, x_ddot_p -> Platform state and time derivatives
@@ -82,9 +84,11 @@ protected:
   //                             (in ur5_arm_base_link frame)
   // u_e_ -> external wrench (force/torque sensor)
   //         (in ur5_arm_base_link frame)
+  // u_c_ -> control wrench (from yout goal-oriented controller)
+  //         (in ur5_arm_base_link frame)
   Vector6d x_a_, x_dot_a_;
   Vector6d x_p_, x_dot_p_;
-  Vector6d u_e_;
+  Vector6d u_e_, u_c_;
 
   Matrix6d rotation_base_; // Transform from base_link to
                                          // ur5_arm_base_link
@@ -110,6 +114,7 @@ protected:
   void state_platform_callback(const nav_msgs::OdometryConstPtr msg);
   void state_arm_callback(const cartesian_state_msgs::PoseTwistConstPtr msg);
   void wrench_callback(const geometry_msgs::WrenchStampedConstPtr msg);
+  void wrench_control_callback(const geometry_msgs::WrenchStampedConstPtr msg);
 
 public:
   AdmittanceController(ros::NodeHandle &n, double frequency,
@@ -118,6 +123,7 @@ public:
                        std::string cmd_topic_arm,
                        std::string state_topic_arm,
                        std::string wrench_topic,
+                       std::string wrench_control_topic,
                        std::vector<double> M_p,
                        std::vector<double> M_a,
                        std::vector<double> D,

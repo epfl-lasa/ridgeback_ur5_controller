@@ -10,12 +10,14 @@
   <arg name="CMD_TOPIC_PLATFORM" default="/cmd_vel" />
   <arg name="WRENCH_TOPIC" default="/wrench" />
   <arg name="ADMITTANCE_PARAMS_FILE" default="$(find admittance_control)/config/admittance_params_real.yaml" />
+  <arg name="WRENCH_CONTROL_TOPIC" default="/wrench_control" />
 
   <param name="state_topic_arm" value="$(arg STATE_TOPIC_ARM)"/>
   <param name="cmd_topic_arm" value="$(arg CMD_TOPIC_ARM)"/>
   <param name="state_topic_platform" value="$(arg STATE_TOPIC_PLATFORM)"/>
   <param name="cmd_topic_platform" value="$(arg CMD_TOPIC_PLATFORM)"/>
   <param name="wrench_topic" value="$(arg WRENCH_TOPIC)"/>
+  <param name="wrench_control_topic" value="$(arg WRENCH_CONTROL_TOPIC)"/>
 
   <rosparam file="$(arg ADMITTANCE_PARAMS_FILE)" command="load"/>
 

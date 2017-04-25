@@ -10,7 +10,8 @@ int main(int argc, char **argv)
 
   // Parameters
   std::string state_topic_arm, cmd_topic_arm,
-          cmd_topic_platform, state_topic_platform, wrench_topic;
+          cmd_topic_platform, state_topic_platform, wrench_topic,
+	  wrench_control_topic;
   std::vector<double> M_p, M_a, D, D_p, D_a, K, d_e;
 
   if (!nh.getParam("state_topic_arm", state_topic_arm))
@@ -39,7 +40,13 @@ int main(int argc, char **argv)
 
   if (!nh.getParam("wrench_topic", wrench_topic))
   {
-    ROS_ERROR("Couldn't retrieve the cmd_topic_arm. ");
+    ROS_ERROR("Couldn't retrieve the wrench_topic. ");
+    return -1;
+  }
+
+  if (!nh.getParam("wrench_control_topic", wrench_control_topic))
+  {
+    ROS_ERROR("Couldn't retrieve the wrench_control_topic. ");
     return -1;
   }
 
@@ -91,8 +98,9 @@ int main(int argc, char **argv)
                                              state_topic_platform,
                                              cmd_topic_arm,
                                              state_topic_arm,
-                                             wrench_topic, M_p, M_a,
-                                             D, D_p, D_a, K, d_e);
+                                             wrench_topic, 
+					     wrench_control_topic,
+                                             M_p, M_a, D, D_p, D_a, K, d_e);
   admittance_controller.run();
 
   return 0;
