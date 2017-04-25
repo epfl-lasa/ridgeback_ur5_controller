@@ -20,9 +20,15 @@
   </group>
 
   <group if="$(arg sim)">
+
     <!-- FAKE WRENCH -->
-    <node name="fake_wrench" pkg="cpr_bringup" type="fake_wrench.py"
+    <node if="false" name="fake_wrench" pkg="cpr_bringup" type="fake_wrench.py"
       required="true" output="screen"/>
+
+    <!-- REAL WRENCH from falcon -->
+  <include if="true" file="$(find falcon_ros)/launch/falcon_as_forceInput.launch"/>
+
+
 
     <!-- SET INITIAL POSE AND START CONTROLLERS-->
     <!-- To make sure gazebo is already loaded, they are launched 6 secs
