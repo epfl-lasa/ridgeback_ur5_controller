@@ -18,10 +18,10 @@ wrench_pub = None
 
 def publisherCallback( msg ):
     try:
-        listener.waitForTransform("/fake_force_pose", "/world", rospy.Time(0), rospy.Duration(10.0))
-        (trans1,rot1) = listener.lookupTransform("/fake_force_pose", "/world", rospy.Time(0))
-        (trans2,rot2) = listener.lookupTransform("/world", "/ur5_arm_ee_link", rospy.Time(0))
-        (trans3,rot3) = listener.lookupTransform("/ur5_arm_base_link", "/world",rospy.Time(0))
+        listener.waitForTransform("/world", "/fake_force_pose", rospy.Time(0), rospy.Duration(10.0))
+        (trans1,rot1) = listener.lookupTransform("/world", "/fake_force_pose", rospy.Time(0))
+        (trans2,rot2) = listener.lookupTransform("/world", "/FT300_link", rospy.Time(0))
+        (trans3,rot3) = listener.lookupTransform("/FT300_link", "/world",rospy.Time(0))
         # Publish the fake force
         fake_wrench = geometry_msgs.msg.WrenchStamped()
         trans1_mat = tf.transformations.translation_matrix(trans1)
@@ -38,7 +38,7 @@ def publisherCallback( msg ):
         fake_wrench.wrench.torque.x = euler[0]
         fake_wrench.wrench.torque.y = euler[1]
         fake_wrench.wrench.torque.z = euler[2]
-        fake_wrench.header.frame_id = "ur5_arm_base_link"
+        fake_wrench.header.frame_id = "FT300_link"
         fake_wrench.header.stamp = rospy.Time(0)
         wrench_pub.publish(fake_wrench)
     except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
@@ -46,9 +46,9 @@ def publisherCallback( msg ):
 
 def transformCallback( msg ):
     br = TransformBroadcaster()
-    br.sendTransform((-marker_pose.translation.x,
-                     -marker_pose.translation.y,
-                     -marker_pose.translation.z),
+    br.sendTransform((marker_pose.translation.x,
+                     marker_pose.translation.y,
+                     marker_pose.translation.z),
                      (0,0,0,1),
                      rospy.Time.now(),
                      "fake_force_pose",

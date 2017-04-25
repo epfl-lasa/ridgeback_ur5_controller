@@ -108,6 +108,10 @@ protected:
   // x_ddot_a = M_a_^{-1}(-D_*(x_dot_p_ - x_dot_a_)
   //              - D_a_ x_dot_a_ + K_(x_p_ - x_a_ - d_e_)) + u_e_
   //
+
+  tf::TransformListener listener_ft_;
+  tf::TransformListener listener_control_;
+
   void compute_admittance(Vector6d & desired_twist_platform,
                      Vector6d & desired_vel_arm, ros::Duration cycle_time);
 
@@ -115,6 +119,8 @@ protected:
   void state_arm_callback(const cartesian_state_msgs::PoseTwistConstPtr msg);
   void wrench_callback(const geometry_msgs::WrenchStampedConstPtr msg);
   void wrench_control_callback(const geometry_msgs::WrenchStampedConstPtr msg);
+  Matrix6d get_rotation_matrix(tf::TransformListener & listener,
+                               std::string from_frame,  std::string to_frame);
 
 public:
   AdmittanceController(ros::NodeHandle &n, double frequency,
