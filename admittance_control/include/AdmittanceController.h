@@ -70,6 +70,8 @@ protected:
   ros::Subscriber platform_sub_;
   // Publisher for the twist of arm endeffector
   ros::Publisher arm_pub_;
+  // Publisher for the twist of arm endeffector in the world frame
+  ros::Publisher arm_pub_world_;
   // Subscriber for the arm state
   ros::Subscriber arm_sub_;
   // Subscriber for the ft sensor at the endeffector
@@ -111,6 +113,8 @@ protected:
 
   tf::TransformListener listener_ft_;
   tf::TransformListener listener_control_;
+  tf::TransformListener listener_ee_world;
+  tf::TransformListener listener_platform_world;
 
   void compute_admittance(Vector6d & desired_twist_platform,
                      Vector6d & desired_vel_arm, ros::Duration cycle_time);
@@ -127,6 +131,7 @@ public:
                        std::string cmd_topic_platform,
                        std::string state_topic_platform,
                        std::string cmd_topic_arm,
+                       std::string topic_arm_twist_world,
                        std::string state_topic_arm,
                        std::string wrench_topic,
                        std::string wrench_control_topic,

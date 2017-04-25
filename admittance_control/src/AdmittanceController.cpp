@@ -5,6 +5,7 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
                                               std::string cmd_topic_platform,
                                               std::string state_topic_platform,
                                               std::string cmd_topic_arm,
+                                              std::string topic_arm_twist_world,
                                               std::string state_topic_arm,
                                               std::string wrench_topic,
                                               std::string wrench_control_topic,
@@ -33,6 +34,7 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
                           &AdmittanceController::wrench_control_callback, this,
                           ros::TransportHints().reliable().tcpNoDelay());
   arm_pub_ = nh_.advertise<geometry_msgs::Twist>(cmd_topic_arm, 3);
+  arm_pub_world_ = nh_.advertise<geometry_msgs::Twist>(topic_arm_twist_world, 3);
   arm_sub_ = nh_.subscribe(state_topic_arm, 3,
                           &AdmittanceController::state_arm_callback, this,
                           ros::TransportHints().reliable().tcpNoDelay());
@@ -121,6 +123,31 @@ void AdmittanceController::compute_admittance(Vector6d &desired_twist_platform,
 
   std::cout << "Desired twist arm: " << desired_twist_arm << std::endl;
   std::cout << "Desired twist platform: " << desired_twist_platform << std::endl;
+
+
+  // publishing the cartesian velocity of the EE in the world-frame
+  Vector6d twist_arm_world_frame; 
+  Matrix6d rotation_a_base_world;
+  Matrix6d rotation_p_base_world;
+
+  rotation_a_base_world << get_rotation_matrix(listener_ee_world,
+                                             "ur5_arm_base_link","world");
+  rotation_p_base_world << get_rotation_matrix(listener_platform_world,
+                                             "base_link","world");
+  twist_arm_world_frame = rotation_a_base_world * x_dot_a_ + rotation_p_base_world * x_dot_p_;
+ 
+  geometry_msgs::Twist arm_twist_world;
+
+  arm_twist_world.linear.x  = twist_arm_world_frame(0);
+  arm_twist_world.linear.y  = twist_arm_world_frame(1);
+  arm_twist_world.linear.z  = twist_arm_world_frame(2);
+  arm_twist_world.angular.x = twist_arm_world_frame(3);
+  arm_twist_world.angular.y = twist_arm_world_frame(4);
+  arm_twist_world.angular.z = twist_arm_world_frame(5);
+
+  arm_pub_world_.publish(arm_twist_world);
+
+
 }
 
 // CALLBACKS
