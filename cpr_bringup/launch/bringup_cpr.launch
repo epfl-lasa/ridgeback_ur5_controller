@@ -1,8 +1,6 @@
 <launch>
   <!-- PARAMS -->
-  <arg name="gui" default="false"/>
   <arg name="sim" default="true"/>
-  <arg name="gazebo_paused" default="true"/>
   <arg name="world_name" default="$(find cpr_bringup)/worlds/empty.world"/>
 
   <!-- SET WORLD FRAME -->
@@ -12,8 +10,6 @@
   <!-- BRINGUP ROBOT -->
   <include file="$(find cpr_bringup)/launch/cpr_world.launch">
     <arg name="sim" value="$(arg sim)"/>
-    <arg name="paused" value="$(arg gazebo_paused)"/>
-    <arg name="gui" value="$(arg gui)"/>
     <arg name="world_name" value="$(arg world_name)"/>
   </include>
 
@@ -39,4 +35,5 @@
   </group>
 
 </launch>
+
 
