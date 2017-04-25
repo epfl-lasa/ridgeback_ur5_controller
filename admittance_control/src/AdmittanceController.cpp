@@ -22,18 +22,18 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
                                               D_p_(D_p.data()),
                                               D_a_(D_a.data()), K_(K.data()),
                                               d_e_(d_e.data()) {
-  platform_pub_ = nh_.advertise<geometry_msgs::Twist>(cmd_topic_platform, 1);
-  platform_sub_ = nh_.subscribe(state_topic_platform, 1,
+  platform_pub_ = nh_.advertise<geometry_msgs::Twist>(cmd_topic_platform, 3);
+  platform_sub_ = nh_.subscribe(state_topic_platform, 3,
                           &AdmittanceController::state_platform_callback, this,
                           ros::TransportHints().reliable().tcpNoDelay());
-  wrench_sub_ = nh_.subscribe(wrench_topic, 1,
+  wrench_sub_ = nh_.subscribe(wrench_topic, 3,
                           &AdmittanceController::wrench_callback, this,
                           ros::TransportHints().reliable().tcpNoDelay());
-  wrench_control_sub_ = nh_.subscribe(wrench_control_topic, 1,
+  wrench_control_sub_ = nh_.subscribe(wrench_control_topic, 3,
                           &AdmittanceController::wrench_control_callback, this,
                           ros::TransportHints().reliable().tcpNoDelay());
-  arm_pub_ = nh_.advertise<geometry_msgs::Twist>(cmd_topic_arm, 1);
-  arm_sub_ = nh_.subscribe(state_topic_arm, 1,
+  arm_pub_ = nh_.advertise<geometry_msgs::Twist>(cmd_topic_arm, 3);
+  arm_sub_ = nh_.subscribe(state_topic_arm, 3,
                           &AdmittanceController::state_arm_callback, this,
                           ros::TransportHints().reliable().tcpNoDelay());
 
@@ -47,7 +47,7 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
   while (!success) {
     try{
       listener.waitForTransform("/ur5_arm_base_link","/base_link",
-                              now, ros::Duration(10.0) );
+                              now, ros::Duration(1.0) );
       listener.lookupTransform( "/ur5_arm_base_link","/base_link",
               now, transform);
       success = true;
@@ -66,7 +66,6 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
   rotation_base_.bottomRightCorner(3, 3) = rotation_base;
   u_e_.setZero();
   u_c_.setZero();
-
 }
 
 // Control loop
@@ -158,12 +157,52 @@ void AdmittanceController::state_arm_callback(
 
 void AdmittanceController::wrench_callback(
     const geometry_msgs::WrenchStampedConstPtr msg) {
-  u_e_ << msg->wrench.force.x, msg->wrench.force.y, msg->wrench.force.z,
+    // Get transform from arm base link to platform base link
+  Vector6d wrench_ft_frame;
+  Matrix6d rotation_ft_base;
+  rotation_ft_base << get_rotation_matrix(listener_ft_,
+                                         "FT300_link", "ur5_arm_base_link");
+
+  wrench_ft_frame << msg->wrench.force.x, msg->wrench.force.y, msg->wrench.force.z,
           msg->wrench.torque.x, msg->wrench.torque.y, msg->wrench.torque.z;
+  u_e_ << rotation_ft_base * wrench_ft_frame;
 }
 
 void AdmittanceController::wrench_control_callback(
     const geometry_msgs::WrenchStampedConstPtr msg) {
-  u_c_ << msg->wrench.force.x, msg->wrench.force.y, msg->wrench.force.z,
-          msg->wrench.torque.x, msg->wrench.torque.y, msg->wrench.torque.z;
+  Vector6d wrench_control_world_frame;
+  Matrix6d rotation_world_base;
+  rotation_world_base << get_rotation_matrix(listener_control_,
+                                             "world", "ur5_arm_base_link");
+  wrench_control_world_frame << msg->wrench.force.x, msg->wrench.force.y,
+          msg->wrench.force.z,  msg->wrench.torque.x, msg->wrench.torque.y,
+          msg->wrench.torque.z;
+  u_c_ << rotation_world_base * wrench_control_world_frame;
 }
+
+Matrix6d AdmittanceController::get_rotation_matrix(tf::TransformListener & listener,
+                                                   std::string from_frame,
+                                                   std::string to_frame) {
+  tf::StampedTransform transform;
+  Matrix3d rotation_from_to;
+  Matrix6d rotation_matrix;
+  ros::Time now = ros::Time::now();
+  try{
+    listener.waitForTransform(from_frame, to_frame,
+                              now, ros::Duration(0.1) );
+    listener.lookupTransform(from_frame, to_frame,
+                             now, transform);
+    tf::matrixTFToEigen(transform.getBasis().inverse(), rotation_from_to);
+    rotation_matrix.setZero();
+    rotation_matrix.topLeftCorner(3, 3) = rotation_from_to;
+    rotation_matrix.bottomRightCorner(3, 3) = rotation_from_to;
+  }
+  catch (tf::TransformException ex) {
+    ROS_WARN("%s",ex.what());
+    rotation_matrix.setZero();
+  }
+
+  return rotation_matrix;
+}
+
+
