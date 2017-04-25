@@ -119,7 +119,6 @@ void AdmittanceController::compute_admittance(Vector6d &desired_twist_platform,
   desired_twist_platform = x_dot_p_ + x_ddot_p * duration.toSec();
   desired_twist_arm = x_dot_a_ + x_ddot_a * duration.toSec();
 
-  desired_twist_platform.setZero();
   std::cout << "Desired twist arm: " << desired_twist_arm << std::endl;
   std::cout << "Desired twist platform: " << desired_twist_platform << std::endl;
 }
@@ -167,7 +166,6 @@ void AdmittanceController::wrench_callback(
   wrench_ft_frame << msg->wrench.force.x, msg->wrench.force.y, msg->wrench.force.z,
           msg->wrench.torque.x, msg->wrench.torque.y, msg->wrench.torque.z;
   u_e_ << rotation_ft_base * wrench_ft_frame;
-  std::cout << "Force at the arm base " << u_e_;
 }
 
 void AdmittanceController::wrench_control_callback(
@@ -180,7 +178,6 @@ void AdmittanceController::wrench_control_callback(
           msg->wrench.force.z,  msg->wrench.torque.x, msg->wrench.torque.y,
           msg->wrench.torque.z;
   u_c_ << rotation_world_base * wrench_control_world_frame;
-
 }
 
 Matrix6d AdmittanceController::get_rotation_matrix(tf::TransformListener & listener,
@@ -195,16 +192,16 @@ Matrix6d AdmittanceController::get_rotation_matrix(tf::TransformListener & liste
                               now, ros::Duration(0.1) );
     listener.lookupTransform(from_frame, to_frame,
                              now, transform);
+    tf::matrixTFToEigen(transform.getBasis().inverse(), rotation_from_to);
+    rotation_matrix.setZero();
+    rotation_matrix.topLeftCorner(3, 3) = rotation_from_to;
+    rotation_matrix.bottomRightCorner(3, 3) = rotation_from_to;
   }
   catch (tf::TransformException ex) {
     ROS_WARN("%s",ex.what());
-    rotation_matrix.setIdentity();
+    rotation_matrix.setZero();
   }
-  tf::matrixTFToEigen(transform.getBasis().inverse(), rotation_from_to);
 
-  rotation_matrix.setZero();
-  rotation_matrix.topLeftCorner(3, 3) = rotation_from_to;
-  rotation_matrix.bottomRightCorner(3, 3) = rotation_from_to;
   return rotation_matrix;
 }
 
