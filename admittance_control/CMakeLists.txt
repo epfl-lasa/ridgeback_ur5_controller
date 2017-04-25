@@ -7,14 +7,11 @@ project(admittance_control)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(Eigen3 REQUIRED)
-
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   cartesian_state_msgs
   tf
   tf_conversions
-  cmake_modules
 )
 
 set(CMAKE_CXX_FLAGS "-O2 -O3 -std=c++11 -Wall")
