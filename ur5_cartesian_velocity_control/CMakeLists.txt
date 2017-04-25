@@ -8,12 +8,7 @@ project(ur5_cartesian_velocity_control)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 
-find_package(catkin REQUIRED
-  cmake_modules
-)
-
 find_package(catkin REQUIRED COMPONENTS
-  cmake_modules
   controller_interface
   control_msgs
   forward_command_controller
