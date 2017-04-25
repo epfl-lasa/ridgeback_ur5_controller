@@ -7,6 +7,11 @@ project(ur5_cartesian_velocity_control)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
+
+find_package(catkin REQUIRED
+  cmake_modules
+)
+
 find_package(catkin REQUIRED COMPONENTS
   cmake_modules
   controller_interface
@@ -20,7 +25,6 @@ find_package(catkin REQUIRED COMPONENTS
   kdl_conversions
   cartesian_state_msgs
 )
-
 set(CMAKE_CXX_FLAGS "-O2 -O3 -std=c++11 -mtune=native -fPIC -Wall -Wno-deprecated-declarations")
 
 ## System dependencies are found with CMake's conventions

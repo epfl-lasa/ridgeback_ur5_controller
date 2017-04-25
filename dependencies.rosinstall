@@ -1,7 +1,3 @@
 - git:
     local-name: ridgeback_lasa
     uri: git@github.com:epfl-lasa/ridgeback_lasa.git
-- git:
-    local-name: universal_robot
-    uri: git@github.com:ros-industrial/universal_robot.git
-

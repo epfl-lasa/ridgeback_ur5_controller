@@ -19,7 +19,7 @@ wrench_pub = None
 def publisherCallback( msg ):
     try:
         listener.waitForTransform("/fake_force_pose", "/world", rospy.Time(0), rospy.Duration(10.0))
-        (trans1,rot1) = listener.lookupTransform("/world", "/fake_force_pose", rospy.Time(0))
+        (trans1,rot1) = listener.lookupTransform("/fake_force_pose", "/world", rospy.Time(0))
         (trans2,rot2) = listener.lookupTransform("/world", "/ur5_arm_ee_link", rospy.Time(0))
         (trans3,rot3) = listener.lookupTransform("/ur5_arm_base_link", "/world",rospy.Time(0))
         # Publish the fake force
@@ -51,8 +51,8 @@ def transformCallback( msg ):
                      -marker_pose.translation.z),
                      (0,0,0,1),
                      rospy.Time.now(),
-                     "world",
-                     "fake_force_pose")
+                     "fake_force_pose",
+                     "world")
 
 def makeBox( msg ):
     marker = Marker()
