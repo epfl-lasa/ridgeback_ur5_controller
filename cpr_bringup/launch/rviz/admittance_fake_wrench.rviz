@@ -6,7 +6,9 @@ Panels:
       Expanded:
         - /Global Options1
         - /Status1
+        - /WrenchStamped1
         - /TF1/Frames1
+        - /WrenchStamped2
       Splitter Ratio: 0.5
     Tree Height: 565
   - Class: rviz/Selection
@@ -231,6 +233,19 @@ Visualization Manager:
         {}
       Update Interval: 0
       Value: false
+    - Alpha: 1
+      Arrow Width: 0.5
+      Class: rviz/WrenchStamped
+      Enabled: true
+      Force Arrow Scale: 2
+      Force Color: 0; 170; 0
+      History Length: 1
+      Name: WrenchStamped
+      Topic: /wrench_control
+      Torque Arrow Scale: 2
+      Torque Color: 204; 204; 51
+      Unreliable: false
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -267,10 +282,10 @@ Visualization Manager:
         Z: 0
       Name: Current View
       Near Clip Distance: 0.01
-      Pitch: 0.684796
+      Pitch: 0.159796
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 5.29358
+      Yaw: 5.68358
     Saved: ~
 Window Geometry:
   Displays:
@@ -288,5 +303,5 @@ Window Geometry:
   Views:
     collapsed: false
   Width: 1200
-  X: 575
-  Y: 72
+  X: 565
+  Y: 62

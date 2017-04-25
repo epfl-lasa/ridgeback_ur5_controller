@@ -29,7 +29,7 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
   wrench_sub_ = nh_.subscribe(wrench_topic, 1,
                           &AdmittanceController::wrench_callback, this,
                           ros::TransportHints().reliable().tcpNoDelay());
-  wrench_sub_ = nh_.subscribe(wrench_control_topic, 1,
+  wrench_control_sub_ = nh_.subscribe(wrench_control_topic, 1,
                           &AdmittanceController::wrench_control_callback, this,
                           ros::TransportHints().reliable().tcpNoDelay());
   arm_pub_ = nh_.advertise<geometry_msgs::Twist>(cmd_topic_arm, 1);
@@ -64,6 +64,9 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
   rotation_base_.setZero();
   rotation_base_.topLeftCorner(3, 3) = rotation_base;
   rotation_base_.bottomRightCorner(3, 3) = rotation_base;
+  u_e_.setZero();
+  u_c_.setZero();
+
 }
 
 // Control loop
