@@ -10,25 +10,18 @@
     args="0 0 0 0 0 0 1 world odom 1" />
 
   <!-- BRINGUP ROBOT -->
-  <group if="$(arg sim)" >
-    <!-- Gazebo -->
-    <include file="$(find cpr_bringup)/launch/cpr_world.launch">
-      <arg name="paused" value="$(arg gazebo_paused)"/>
-      <arg name="gui" value="$(arg gui)"/>
-      <arg name="world_name" value="$(arg world_name)"/>
-    </include>
-  </group>
-  <group unless="$(arg sim)">
-    <!-- Real robot -->
-    <!-- We only need to launch the arm. The platform is already runnning
-         as it launches at startup (Check /opt/ros/indigo/init.d/) -->
-    <include file="$(find epfl01)/ur5+FT.launch">
-  </group>
+  <include file="$(find cpr_bringup)/launch/cpr_world.launch">
+    <arg name="sim" value="$(arg sim)"/>
+    <arg name="paused" value="$(arg gazebo_paused)"/>
+    <arg name="gui" value="$(arg gui)"/>
+    <arg name="world_name" value="$(arg world_name)"/>
+  </include>
 
   <!-- RVIZ -->
+  <group if="$(arg sim)" >
   <node name="rviz" pkg="rviz" type="rviz"
     args="-d $(find cpr_bringup)/launch/rviz/admittance_fake_wrench.rviz"/>
-
+  </group>
 
   <group if="$(arg sim)">
     <!-- FAKE WRENCH -->
