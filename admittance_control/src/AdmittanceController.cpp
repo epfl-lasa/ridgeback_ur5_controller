@@ -37,16 +37,24 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
   tf::TransformListener listener;
   tf::StampedTransform transform;
   Eigen::Matrix3d rotation_base;
-  try{
-    listener.waitForTransform("/ur5_arm_base_link","/base_link",
-                              ros::Time(0), ros::Duration(10.0) );
-    listener.lookupTransform( "/ur5_arm_base_link","/base_link",
-              ros::Time(0), transform);
+  ros::Time now = ros::Time::now();
+  bool success = false;
+
+  while (!success) {
+    try{
+      listener.waitForTransform("/ur5_arm_base_link","/base_link",
+                              now, ros::Duration(10.0) );
+      listener.lookupTransform( "/ur5_arm_base_link","/base_link",
+              now, transform);
+      success = true;
+    }
+    catch (tf::TransformException ex) {
+      ROS_ERROR("%s",ex.what());
+      ros::Duration(1.0).sleep();
+    }
+    sleep(0.1);
   }
-  catch (tf::TransformException ex) {
-    ROS_ERROR("%s",ex.what());
-    ros::Duration(1.0).sleep();
-  }
+
   tf::matrixTFToEigen(transform.getBasis().inverse(), rotation_base);
 
   rotation_base_.setZero();
