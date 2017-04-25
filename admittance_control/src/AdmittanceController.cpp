@@ -41,10 +41,10 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
   tf::TransformListener listener;
   tf::StampedTransform transform;
   Eigen::Matrix3d rotation_base;
-  ros::Time now = ros::Time::now();
   bool success = false;
 
   while (!success) {
+    ros::Time now = ros::Time::now();
     try{
       listener.waitForTransform("/ur5_arm_base_link","/base_link",
                               now, ros::Duration(1.0) );
