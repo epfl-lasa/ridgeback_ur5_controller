@@ -105,6 +105,10 @@ before_script:
   - cd ~/catkin_ws
   - rosdep install -y --from-paths src --ignore-src --rosdistro $ROS_DISTRO
 
+  # dependencies not yet in rosdep 
+  - sudo apt-get install ros-indigo-ridgeback-*
+  - sudo apt-get install ros-indigo-universal-robot
+
 # Compile and test.
 script:
   - cd ~/catkin_ws
