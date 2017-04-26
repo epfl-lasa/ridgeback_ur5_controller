@@ -7,6 +7,8 @@
   <arg name="STATE_TOPIC_ARM" default="/ur5_cartesian_velocity_controller_sim/ee_state"/>
   <arg name="CMD_TOPIC_ARM" default="/ur5_cartesian_velocity_controller_sim/command_cart_vel" />
   <arg name="TOPIC_ARM_TWIST_WORLD" default="/ur5_cartesian_velocity_controller_sim/cart_vel_world"/>
+  <arg name="TOPIC_TWIST_U_E" default="/ur5_cartesian_velocity_controller_sim/wrench_u_e"/>
+  <arg name="TOPIC_TWIST_U_C" default="/ur5_cartesian_velocity_controller_sim/wrench_u_c"/>
   <arg name="STATE_TOPIC_PLATFORM" default="/odometry/filtered"/>
   <arg name="CMD_TOPIC_PLATFORM" default="/cmd_vel" />
   <arg name="WRENCH_TOPIC" default="/wrench" />
@@ -16,6 +18,8 @@
   <param name="state_topic_arm" value="$(arg STATE_TOPIC_ARM)"/>
   <param name="cmd_topic_arm" value="$(arg CMD_TOPIC_ARM)"/>
   <param name="topic_arm_twist_world" value="$(arg TOPIC_ARM_TWIST_WORLD)"/>
+  <param name="topic_wrench_u_e" value="$(arg TOPIC_TWIST_U_E)"/>
+  <param name="topic_wrench_u_c" value="$(arg TOPIC_TWIST_U_C)"/>
   <param name="state_topic_platform" value="$(arg STATE_TOPIC_PLATFORM)"/>
   <param name="cmd_topic_platform" value="$(arg CMD_TOPIC_PLATFORM)"/>
   <param name="wrench_topic" value="$(arg WRENCH_TOPIC)"/>

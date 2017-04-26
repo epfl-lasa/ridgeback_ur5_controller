@@ -8,10 +8,9 @@ Panels:
         - /Status1
         - /Grid1
         - /Grid1/Offset1
-        - /WrenchStamped1
-        - /TF1
         - /TF1/Frames1
-        - /WrenchStamped2
+        - /world_u_c x151
+        - /Admittance_u_c x151
       Splitter Ratio: 0.630542
     Tree Height: 895
   - Class: rviz/Selection
@@ -334,15 +333,41 @@ Visualization Manager:
                                 {}
       Update Interval: 0
       Value: true
+    - Alpha: 0.5
+      Arrow Width: 0.5
+      Class: rviz/WrenchStamped
+      Enabled: true
+      Force Arrow Scale: 15
+      Force Color: 0; 170; 0
+      History Length: 1
+      Name: world_u_c x15
+      Topic: /wrench_control
+      Torque Arrow Scale: 2
+      Torque Color: 204; 204; 51
+      Unreliable: false
+      Value: true
+    - Alpha: 1
+      Arrow Width: 0.5
+      Class: rviz/WrenchStamped
+      Enabled: true
+      Force Arrow Scale: 15
+      Force Color: 0; 170; 0
+      History Length: 1
+      Name: Admittance_u_c x15
+      Topic: /ur5_cartesian_velocity_controller_sim/wrench_u_c
+      Torque Arrow Scale: 2
+      Torque Color: 204; 204; 51
+      Unreliable: false
+      Value: true
     - Alpha: 1
       Arrow Width: 0.5
       Class: rviz/WrenchStamped
       Enabled: true
       Force Arrow Scale: 2
-      Force Color: 0; 170; 0
+      Force Color: 204; 51; 51
       History Length: 1
-      Name: WrenchStamped
-      Topic: /wrench_control
+      Name: admittance_u_e
+      Topic: /ur5_cartesian_velocity_controller_sim/wrench_u_e
       Torque Arrow Scale: 2
       Torque Color: 204; 204; 51
       Unreliable: false
@@ -371,7 +396,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 6.51947
+      Distance: 6.91273
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.06
         Stereo Focal Distance: 1
@@ -383,10 +408,10 @@ Visualization Manager:
         Z: 1.12104e-44
       Name: Current View
       Near Clip Distance: 0.01
-      Pitch: 0.298563
+      Pitch: 0.580203
       Target Frame: ur5_arm_base
       Value: XYOrbit (rviz)
-      Yaw: 5.97355
+      Yaw: 1.61037
     Saved: ~
 Window Geometry:
   Displays:
@@ -404,5 +429,5 @@ Window Geometry:
   Views:
     collapsed: false
   Width: 1855
-  X: 65
+  X: 1985
   Y: 24

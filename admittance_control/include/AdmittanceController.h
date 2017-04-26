@@ -79,6 +79,10 @@ protected:
   // Subscriber for the ft sensor at the endeffector
   ros::Subscriber wrench_control_sub_;
 
+  // Subscriber for the admitance control forces in the ur5_arm_base_link, for rviz 
+  ros::Publisher wrench_pub_u_e_;
+  ros::Publisher wrench_pub_u_c_;
+
   // STATE VARIABLES:
   // x_p_, x_dot_p_, x_ddot_p -> Platform state and time derivatives
   //                             (in platform base_link)
@@ -134,6 +138,8 @@ public:
                        std::string state_topic_platform,
                        std::string cmd_topic_arm,
                        std::string topic_arm_twist_world,
+                       std::string topic_wrench_u_e,
+                       std::string topic_wrench_u_c,
                        std::string state_topic_arm,
                        std::string wrench_topic,
                        std::string wrench_control_topic,

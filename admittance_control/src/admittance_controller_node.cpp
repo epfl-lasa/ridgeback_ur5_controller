@@ -9,7 +9,7 @@ int main(int argc, char **argv)
   double frequency = 125.0;
 
   // Parameters
-  std::string state_topic_arm, cmd_topic_arm, topic_arm_twist_world,
+  std::string state_topic_arm, cmd_topic_arm, topic_arm_twist_world, topic_wrench_u_e, topic_wrench_u_c,
           cmd_topic_platform, state_topic_platform, wrench_topic,
 	  wrench_control_topic;
   std::vector<double> M_p, M_a, D, D_p, D_a, K, d_e;
@@ -41,6 +41,18 @@ int main(int argc, char **argv)
   if (!nh.getParam("topic_arm_twist_world", topic_arm_twist_world))
   {
     ROS_ERROR("Couldn't retrieve the topic_arm_twist_world. ");
+    return -1;
+  }
+
+  if (!nh.getParam("topic_wrench_u_e", topic_wrench_u_e))
+  {
+    ROS_ERROR("Couldn't retrieve the topic_wrench_u_e. ");
+    return -1;
+  }
+
+  if (!nh.getParam("topic_wrench_u_c", topic_wrench_u_c))
+  {
+    ROS_ERROR("Couldn't retrieve the topic_wrench_u_c. ");
     return -1;
   }
 
@@ -104,6 +116,8 @@ int main(int argc, char **argv)
                                              state_topic_platform,
                                              cmd_topic_arm,
                                              topic_arm_twist_world,
+                                             topic_wrench_u_e,
+                                             topic_wrench_u_c,
                                              state_topic_arm,
                                              wrench_topic, 
 					     wrench_control_topic,
@@ -112,4 +126,3 @@ int main(int argc, char **argv)
 
   return 0;
 }
-

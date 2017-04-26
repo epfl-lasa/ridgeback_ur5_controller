@@ -6,6 +6,8 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
                                               std::string state_topic_platform,
                                               std::string cmd_topic_arm,
                                               std::string topic_arm_twist_world,
+                                              std::string topic_wrench_u_e,
+                                              std::string topic_wrench_u_c,
                                               std::string state_topic_arm,
                                               std::string wrench_topic,
                                               std::string wrench_control_topic,
@@ -39,7 +41,10 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
   arm_sub_ = nh_.subscribe(state_topic_arm, 3,
                           &AdmittanceController::state_arm_callback, this,
                           ros::TransportHints().reliable().tcpNoDelay());
-
+  wrench_pub_u_e_ = nh_.advertise<geometry_msgs::WrenchStamped>(
+                                                    topic_wrench_u_e, 3);
+  wrench_pub_u_c_ = nh_.advertise<geometry_msgs::WrenchStamped>(
+                                                    topic_wrench_u_c, 3);
   tf::TransformListener listener;
   // Get transform from arm base link to platform base link
   while (!get_rotation_matrix(rotation_base_, listener,
@@ -95,6 +100,36 @@ void AdmittanceController::run() {
     arm_pub_.publish(arm_twist_cmd);
     arm_pub_world_.publish(arm_twist_world);
 
+
+    // publishing useful visualization for debugging 
+    if(true)
+    {
+        geometry_msgs::WrenchStamped Wrench_u_e_;
+        Wrench_u_e_.header.stamp = ros::Time::now();
+        Wrench_u_e_.header.frame_id = "ur5_arm_base_link";
+        Wrench_u_e_.wrench.force.x = u_e_(0);
+        Wrench_u_e_.wrench.force.y = u_e_(1);
+        Wrench_u_e_.wrench.force.z = u_e_(2);
+        Wrench_u_e_.wrench.torque.x = u_e_(3);
+        Wrench_u_e_.wrench.torque.y = u_e_(4);
+        Wrench_u_e_.wrench.torque.z = u_e_(5);
+        wrench_pub_u_e_.publish(Wrench_u_e_);
+
+        geometry_msgs::WrenchStamped Wrench_u_c_;
+        Wrench_u_c_.header.stamp = ros::Time::now();
+        Wrench_u_c_.header.frame_id = "ur5_arm_base_link";
+        Wrench_u_c_.wrench.force.x = u_c_(0);
+        Wrench_u_c_.wrench.force.y = u_c_(1);
+        Wrench_u_c_.wrench.force.z = u_c_(2);
+        Wrench_u_c_.wrench.torque.x = u_c_(3);
+        Wrench_u_c_.wrench.torque.y = u_c_(4);
+        Wrench_u_c_.wrench.torque.z = u_c_(5);
+        wrench_pub_u_c_.publish(Wrench_u_c_);
+
+    }
+
+
+
     ros::spinOnce();
 
     loop_rate_.sleep();
@@ -106,10 +141,10 @@ void AdmittanceController::compute_admittance(Vector6d &desired_twist_platform,
                                             Vector6d &desired_twist_arm,
                                             ros::Duration duration) {
   Vector6d x_ddot_p, x_ddot_a;
-  x_ddot_p = M_p_.inverse()*(- D_*(rotation_base_* x_dot_a_)
-                 - (D_p_ * x_dot_p_) - K_  * (rotation_base_* (d_e_ - x_a_)) );
+  x_ddot_p = M_p_.inverse()*(- D_p_ * x_dot_p_ 
+                            + rotation_base_* (D_a_ * x_dot_a_ + K_ * (x_a_ - d_e_)));
   x_ddot_a = M_a_.inverse()*( - D_*(x_dot_a_)
-                             - (D_a_ * x_dot_a_) + K_ * (d_e_ - x_a_) + u_e_ + u_c_);
+                             - (D_a_ * x_dot_a_) - K_ * (x_a_ - d_e_) + u_e_ + u_c_);
 
   // Integrate for velocity based interface
   desired_twist_platform = x_dot_p_ + x_ddot_p * duration.toSec();
