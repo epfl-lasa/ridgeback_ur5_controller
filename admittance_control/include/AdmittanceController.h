@@ -113,18 +113,20 @@ protected:
 
   tf::TransformListener listener_ft_;
   tf::TransformListener listener_control_;
-  tf::TransformListener listener_ee_world;
-  tf::TransformListener listener_platform_world;
 
   void compute_admittance(Vector6d & desired_twist_platform,
                      Vector6d & desired_vel_arm, ros::Duration cycle_time);
+  void get_arm_twist_world(Vector6d & twist_arm_world_frame,
+                           tf::TransformListener & listener);
 
   void state_platform_callback(const nav_msgs::OdometryConstPtr msg);
   void state_arm_callback(const cartesian_state_msgs::PoseTwistConstPtr msg);
   void wrench_callback(const geometry_msgs::WrenchStampedConstPtr msg);
   void wrench_control_callback(const geometry_msgs::WrenchStampedConstPtr msg);
-  Matrix6d get_rotation_matrix(tf::TransformListener & listener,
-                               std::string from_frame,  std::string to_frame);
+
+  bool get_rotation_matrix(Matrix6d & rotation_matrix,
+                           tf::TransformListener & listener,
+                           std::string from_frame,  std::string to_frame);
 
 public:
   AdmittanceController(ros::NodeHandle &n, double frequency,

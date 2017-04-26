@@ -34,38 +34,19 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
                           &AdmittanceController::wrench_control_callback, this,
                           ros::TransportHints().reliable().tcpNoDelay());
   arm_pub_ = nh_.advertise<geometry_msgs::Twist>(cmd_topic_arm, 3);
-  arm_pub_world_ = nh_.advertise<geometry_msgs::Twist>(topic_arm_twist_world, 3);
+  arm_pub_world_ = nh_.advertise<geometry_msgs::Twist>(
+                                                    topic_arm_twist_world, 3);
   arm_sub_ = nh_.subscribe(state_topic_arm, 3,
                           &AdmittanceController::state_arm_callback, this,
                           ros::TransportHints().reliable().tcpNoDelay());
 
-  // Get transform from arm base link to platform base link
   tf::TransformListener listener;
-  tf::StampedTransform transform;
-  Eigen::Matrix3d rotation_base;
-  ros::Time now = ros::Time::now();
-  bool success = false;
-
-  while (!success) {
-    try{
-      listener.waitForTransform("/ur5_arm_base_link","/base_link",
-                              now, ros::Duration(1.0) );
-      listener.lookupTransform( "/ur5_arm_base_link","/base_link",
-              now, transform);
-      success = true;
-    }
-    catch (tf::TransformException ex) {
-      ROS_ERROR("%s",ex.what());
-      ros::Duration(1.0).sleep();
-    }
+  // Get transform from arm base link to platform base link
+  while (!get_rotation_matrix(rotation_base_, listener,
+                                     "ur5_arm_base_link", "base_link")) {
     sleep(0.1);
   }
 
-  tf::matrixTFToEigen(transform.getBasis().inverse(), rotation_base);
-
-  rotation_base_.setZero();
-  rotation_base_.topLeftCorner(3, 3) = rotation_base;
-  rotation_base_.bottomRightCorner(3, 3) = rotation_base;
   u_e_.setZero();
   u_c_.setZero();
 }
@@ -75,13 +56,18 @@ void AdmittanceController::run() {
   // Desired twists
   Vector6d desired_twist_arm;
   Vector6d desired_twist_platform;
+  Vector6d twist_arm_world_frame;
   geometry_msgs::Twist platform_twist_cmd;
   geometry_msgs::Twist arm_twist_cmd;
+  geometry_msgs::Twist arm_twist_world;
+  tf::TransformListener listener;
 
   while(nh_.ok()) {
     // Dynamics computation
     compute_admittance(desired_twist_platform, desired_twist_arm,
                        loop_rate_.expectedCycleTime());
+    // Arm twist in the world frame
+    get_arm_twist_world(twist_arm_world_frame, listener);
 
     // Copy commands to messages
     platform_twist_cmd.linear.x = desired_twist_platform(0);
@@ -98,8 +84,16 @@ void AdmittanceController::run() {
     arm_twist_cmd.angular.y = desired_twist_arm(4);
     arm_twist_cmd.angular.z = desired_twist_arm(5);
 
+    arm_twist_world.linear.x  = twist_arm_world_frame(0);
+    arm_twist_world.linear.y  = twist_arm_world_frame(1);
+    arm_twist_world.linear.z  = twist_arm_world_frame(2);
+    arm_twist_world.angular.x = twist_arm_world_frame(3);
+    arm_twist_world.angular.y = twist_arm_world_frame(4);
+    arm_twist_world.angular.z = twist_arm_world_frame(5);
+
     platform_pub_.publish(platform_twist_cmd);
     arm_pub_.publish(arm_twist_cmd);
+    arm_pub_world_.publish(arm_twist_world);
 
     ros::spinOnce();
 
@@ -123,31 +117,20 @@ void AdmittanceController::compute_admittance(Vector6d &desired_twist_platform,
 
   std::cout << "Desired twist arm: " << desired_twist_arm << std::endl;
   std::cout << "Desired twist platform: " << desired_twist_platform << std::endl;
+}
 
-
+void AdmittanceController::get_arm_twist_world(Vector6d &twist_arm_world_frame,
+                                            tf::TransformListener & listener) {
   // publishing the cartesian velocity of the EE in the world-frame
-  Vector6d twist_arm_world_frame; 
   Matrix6d rotation_a_base_world;
   Matrix6d rotation_p_base_world;
 
-  rotation_a_base_world << get_rotation_matrix(listener_ee_world,
-                                             "ur5_arm_base_link","world");
-  rotation_p_base_world << get_rotation_matrix(listener_platform_world,
-                                             "base_link","world");
-  twist_arm_world_frame = rotation_a_base_world * x_dot_a_ + rotation_p_base_world * x_dot_p_;
- 
-  geometry_msgs::Twist arm_twist_world;
-
-  arm_twist_world.linear.x  = twist_arm_world_frame(0);
-  arm_twist_world.linear.y  = twist_arm_world_frame(1);
-  arm_twist_world.linear.z  = twist_arm_world_frame(2);
-  arm_twist_world.angular.x = twist_arm_world_frame(3);
-  arm_twist_world.angular.y = twist_arm_world_frame(4);
-  arm_twist_world.angular.z = twist_arm_world_frame(5);
-
-  arm_pub_world_.publish(arm_twist_world);
-
-
+  get_rotation_matrix(rotation_a_base_world, listener,
+                                           "ur5_arm_base_link","world");
+  get_rotation_matrix(rotation_p_base_world, listener,
+                                           "base_link","world");
+  twist_arm_world_frame = rotation_a_base_world * x_dot_a_
+                           + rotation_p_base_world * x_dot_p_;
 }
 
 // CALLBACKS
@@ -187,7 +170,7 @@ void AdmittanceController::wrench_callback(
     // Get transform from arm base link to platform base link
   Vector6d wrench_ft_frame;
   Matrix6d rotation_ft_base;
-  rotation_ft_base << get_rotation_matrix(listener_ft_,
+  get_rotation_matrix(rotation_ft_base, listener_ft_,
                                          "FT300_link", "ur5_arm_base_link");
 
   wrench_ft_frame << msg->wrench.force.x, msg->wrench.force.y, msg->wrench.force.z,
@@ -199,7 +182,7 @@ void AdmittanceController::wrench_control_callback(
     const geometry_msgs::WrenchStampedConstPtr msg) {
   Vector6d wrench_control_world_frame;
   Matrix6d rotation_world_base;
-  rotation_world_base << get_rotation_matrix(listener_control_,
+  get_rotation_matrix(rotation_world_base, listener_control_,
                                              "world", "ur5_arm_base_link");
   wrench_control_world_frame << msg->wrench.force.x, msg->wrench.force.y,
           msg->wrench.force.z,  msg->wrench.torque.x, msg->wrench.torque.y,
@@ -207,12 +190,12 @@ void AdmittanceController::wrench_control_callback(
   u_c_ << rotation_world_base * wrench_control_world_frame;
 }
 
-Matrix6d AdmittanceController::get_rotation_matrix(tf::TransformListener & listener,
+bool AdmittanceController::get_rotation_matrix(Matrix6d & rotation_matrix,
+                                                   tf::TransformListener & listener,
                                                    std::string from_frame,
                                                    std::string to_frame) {
   tf::StampedTransform transform;
   Matrix3d rotation_from_to;
-  Matrix6d rotation_matrix;
   ros::Time now = ros::Time::now();
   try{
     listener.waitForTransform(from_frame, to_frame,
@@ -227,9 +210,10 @@ Matrix6d AdmittanceController::get_rotation_matrix(tf::TransformListener & liste
   catch (tf::TransformException ex) {
     ROS_WARN("%s",ex.what());
     rotation_matrix.setZero();
+    return false;
   }
 
-  return rotation_matrix;
+  return true;
 }
 
 
