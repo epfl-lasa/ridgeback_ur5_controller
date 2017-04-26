@@ -141,10 +141,13 @@ void AdmittanceController::compute_admittance(Vector6d &desired_twist_platform,
                                             Vector6d &desired_twist_arm,
                                             ros::Duration duration) {
   Vector6d x_ddot_p, x_ddot_a;
+  x_ddot_p.setZero();
+  x_ddot_a.setZero();
+  
   x_ddot_p = M_p_.inverse()*(- D_p_ * x_dot_p_ 
-                            + rotation_base_* (D_a_ * x_dot_a_ + K_ * (x_a_ - d_e_)));
-  x_ddot_a = M_a_.inverse()*( - D_*(x_dot_a_)
-                             - (D_a_ * x_dot_a_) - K_ * (x_a_ - d_e_) + u_e_ + u_c_);
+                            + rotation_base_* (D_ * x_dot_a_ + K_ * (x_a_ - d_e_)));
+  x_ddot_a = M_a_.inverse()*( - (D_ + D_a_) *(x_dot_a_)
+                                - K_ * (x_a_ - d_e_) + u_e_ + u_c_);
 
   // Integrate for velocity based interface
   desired_twist_platform = x_dot_p_ + x_ddot_p * duration.toSec();
@@ -152,6 +155,7 @@ void AdmittanceController::compute_admittance(Vector6d &desired_twist_platform,
 
   std::cout << "Desired twist arm: " << desired_twist_arm << std::endl;
   std::cout << "Desired twist platform: " << desired_twist_platform << std::endl;
+
 }
 
 void AdmittanceController::get_arm_twist_world(Vector6d &twist_arm_world_frame,
