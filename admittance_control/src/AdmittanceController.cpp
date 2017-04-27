@@ -135,8 +135,6 @@ void AdmittanceController::compute_admittance(Vector6d &desired_twist_platform,
                                             Vector6d &desired_twist_arm,
                                             ros::Duration duration) {
   Vector6d x_ddot_p, x_ddot_a;
-  x_ddot_p.setZero();
-  x_ddot_a.setZero();
   
   x_ddot_p = M_p_.inverse()*(- D_p_ * x_dot_p_ 
                        + rotation_base_* (D_ * x_dot_a_ + K_ * (x_a_ - d_e_)));
@@ -234,18 +232,18 @@ bool AdmittanceController::get_rotation_matrix(Matrix6d & rotation_matrix,
                                                    std::string to_frame) {
   tf::StampedTransform transform;
   Matrix3d rotation_from_to;
-  ros::Time now = ros::Time::now();
   try{
-    listener.waitForTransform(from_frame, to_frame,
-                              now, ros::Duration(0.01) );
+    //listener.waitForTransform(from_frame, to_frame,
+    //                          ros::Time(0), ros::Duration(0.01) );
     listener.lookupTransform(from_frame, to_frame,
-                             now, transform);
+                             ros::Time(0), transform);
     tf::matrixTFToEigen(transform.getBasis().inverse(), rotation_from_to);
     rotation_matrix.setZero();
     rotation_matrix.topLeftCorner(3, 3) = rotation_from_to;
     rotation_matrix.bottomRightCorner(3, 3) = rotation_from_to;
   }
   catch (tf::TransformException ex) {
+    rotation_matrix.setZero();
     ROS_WARN("%s",ex.what());
     return false;
   }
