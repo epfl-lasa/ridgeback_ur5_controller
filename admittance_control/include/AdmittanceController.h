@@ -94,7 +94,9 @@ protected:
   //         (in ur5_arm_base_link frame)
   Vector6d x_a_, x_dot_a_;
   Vector6d x_p_, x_dot_p_;
-  Vector6d u_e_, u_c_;
+  Vector6d u_e_, u_c_;  
+  Vector6d twist_arm_world_frame_; // for publishing
+
 
   Matrix6d rotation_base_; // Transform from base_link to
                                          // ur5_arm_base_link
@@ -117,6 +119,7 @@ protected:
 
   tf::TransformListener listener_ft_;
   tf::TransformListener listener_control_;
+  tf::TransformListener listener_arm_;
 
   void compute_admittance(Vector6d & desired_twist_platform,
                      Vector6d & desired_vel_arm, ros::Duration cycle_time);
