@@ -6,10 +6,10 @@
 
   <!-- SET WORLD FRAME -->
   <node pkg="tf" type="static_transform_publisher" name="link1_broadcaster" 
-    args="0 0 0 0 0 0 1 world odom 1" />
+    args="0 0 0 0 0 0 1 world odom 2" />
 
   <!-- BRINGUP ROBOT -->
-  <include file="$(find cpr_bringup)/launch/cpr_world.launch">
+  <include file="$(find cpr_bringup)/launch/robot_bringup.launch">
     <arg name="sim" value="$(arg sim)"/>
     <arg name="world_name" value="$(arg world_name)"/>
   </include>
