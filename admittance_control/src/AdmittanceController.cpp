@@ -177,8 +177,8 @@ void AdmittanceController::compute_admittance(Vector6d &desired_twist_platform,
                                 - K_ * (x_a_ - d_e_) + u_e_ + u_c_);
 
   // Integrate for velocity based interface
-   desired_twist_platform = x_dot_p_ + x_ddot_p * duration.toSec();
-   desired_twist_arm = x_dot_a_ + x_ddot_a * duration.toSec();
+   desired_twist_platform = desired_twist_platform + x_ddot_p * duration.toSec();
+   desired_twist_arm = desired_twist_arm + x_ddot_a * duration.toSec();
 
   std::cout << "Desired twist arm: " << desired_twist_arm << std::endl;
   std::cout << "Desired twist platform: " << desired_twist_platform << std::endl;
