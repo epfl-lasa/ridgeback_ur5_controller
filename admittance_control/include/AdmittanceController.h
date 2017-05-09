@@ -121,6 +121,12 @@ protected:
   tf::TransformListener listener_control_;
   tf::TransformListener listener_arm_;
 
+  // TF guards
+  bool ft_arm_ready_;
+  bool arm_world_ready_;
+  bool base_world_ready_;
+  bool world_arm_ready_;
+
   void compute_admittance(Vector6d & desired_twist_platform,
                      Vector6d & desired_vel_arm, ros::Duration cycle_time);
   void get_arm_twist_world(Vector6d & twist_arm_world_frame,
@@ -134,6 +140,7 @@ protected:
   bool get_rotation_matrix(Matrix6d & rotation_matrix,
                            tf::TransformListener & listener,
                            std::string from_frame,  std::string to_frame);
+  void init_TF();
 
 public:
   AdmittanceController(ros::NodeHandle &n, double frequency,
