@@ -10,6 +10,8 @@ project(admittance_control)
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   cartesian_state_msgs
+  laser_geometry
+  sensor_msgs
   tf
   tf_conversions
 )

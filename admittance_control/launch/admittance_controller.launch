@@ -17,6 +17,8 @@
   <arg name="WRENCH_FILTER_FACTOR" default="0.1" />
   <arg name="FORCE_DEAD_ZONE_THRES" default="6.5" />
   <arg name="TORQUE_DEAD_ZONE_THRES" default="0.5" />
+  <arg name="LASER_FRONT_TOPIC" default="/front/scan" />
+  <arg name="LASER_REAR_TOPIC" default="/rear/scan" />
 
   <param name="state_topic_arm" value="$(arg STATE_TOPIC_ARM)"/>
   <param name="cmd_topic_arm" value="$(arg CMD_TOPIC_ARM)"/>
@@ -30,6 +32,8 @@
   <param name="wrench_filter_factor" value="$(arg WRENCH_FILTER_FACTOR)"/>
   <param name="force_dead_zone_thres" value="$(arg FORCE_DEAD_ZONE_THRES)"/>
   <param name="torque_dead_zone_thres" value="$(arg TORQUE_DEAD_ZONE_THRES)"/>
+  <param name="laser_front_topic" value="$(arg LASER_FRONT_TOPIC)"/>
+  <param name="laser_rear_topic" value="$(arg LASER_REAR_TOPIC)"/>
 
   <rosparam file="$(arg ADMITTANCE_PARAMS_FILE)" command="load"/>
 

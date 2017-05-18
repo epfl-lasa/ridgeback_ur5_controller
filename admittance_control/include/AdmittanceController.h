@@ -6,6 +6,8 @@
 #include "cartesian_state_msgs/PoseTwist.h"
 #include "geometry_msgs/WrenchStamped.h"
 #include "nav_msgs/Odometry.h"
+#include "sensor_msgs/LaserScan.h"
+#include "laser_geometry/laser_geometry.h"
 #include <tf/transform_datatypes.h>
 #include <tf_conversions/tf_eigen.h>
 #include <tf/transform_listener.h>
@@ -72,6 +74,8 @@ protected:
   ros::Publisher arm_pub_;
   // Publisher for the twist of arm endeffector in the world frame
   ros::Publisher arm_pub_world_;
+  // Publisher for the obstacle vector
+  ros::Publisher obs_pub_;
   // Subscriber for the arm state
   ros::Subscriber arm_sub_;
   // Subscriber for the ft sensor at the endeffector
@@ -79,9 +83,12 @@ protected:
   // Subscriber for the ft sensor at the endeffector
   ros::Subscriber wrench_control_sub_;
 
-  // Subscriber for the admitance control forces in the ur5_arm_base_link, for rviz 
+  // Subscriber for the admittance control forces in the ur5_arm_base_link, for rviz
   ros::Publisher wrench_pub_u_e_;
   ros::Publisher wrench_pub_u_c_;
+
+  // Subscriber for the collision avoidance
+  ros::Subscriber laser_front_sub_;
 
   // STATE VARIABLES:
   // x_p_, x_dot_p_, x_ddot_p -> Platform state and time derivatives
@@ -112,6 +119,7 @@ protected:
   Matrix6d M_p_, M_a_, D_, D_p_, D_a_, K_;
   Vector6d d_e_;
 
+
   // RENDERED DYNAMICS:
   // x_ddot_p = M_p_^{-1}(-D_*(x_dot_p_ - x_dot_a_)
   //              - D_p_ x_dot_p_ - K_(x_p_ - x_a_ - d_e_))
@@ -119,9 +127,25 @@ protected:
   //              - D_a_ x_dot_a_ + K_(x_p_ - x_a_ - d_e_)) + u_e_
   //
 
+  // Vector defining the position of an obstacle in the base_link
+  // If no obstacle is detected then it is set to 0
+  Eigen::Vector3d obs_vector_;
+
+  // Point cloud from the laser scan
+  laser_geometry::LaserProjection projector_;
+  sensor_msgs::PointCloud laser_front_cloud_;
+  sensor_msgs::PointCloud laser_rear_cloud_;
+
+  // Distance threshold to consider an obstacle
+  double obs_distance_thres_;
+
+
+  // TF listeners
   tf::TransformListener listener_ft_;
   tf::TransformListener listener_control_;
   tf::TransformListener listener_arm_;
+  tf::TransformListener listener_laser_front_;
+  tf::TransformListener listener_laser_rear_;
 
   // TF guards
   bool ft_arm_ready_;
@@ -143,12 +167,11 @@ protected:
   void state_arm_callback(const cartesian_state_msgs::PoseTwistConstPtr msg);
   void wrench_callback(const geometry_msgs::WrenchStampedConstPtr msg);
   void wrench_control_callback(const geometry_msgs::WrenchStampedConstPtr msg);
+  void laser_front_callback(const sensor_msgs::LaserScanPtr msg);
 
   bool get_rotation_matrix(Matrix6d & rotation_matrix,
                            tf::TransformListener & listener,
                            std::string from_frame,  std::string to_frame);
-  void init_TF();
-
   void init_TF();
   double wrap_angle(double angle);
 
@@ -163,6 +186,7 @@ public:
                        std::string state_topic_arm,
                        std::string wrench_topic,
                        std::string wrench_control_topic,
+                       std::string laser_front_topic,
                        std::vector<double> M_p,
                        std::vector<double> M_a,
                        std::vector<double> D,

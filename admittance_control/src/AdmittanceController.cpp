@@ -11,6 +11,7 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
                              std::string state_topic_arm,
                              std::string wrench_topic,
                              std::string wrench_control_topic,
+                             std::string laser_front_topic,
                              std::vector<double> M_p,
                              std::vector<double> M_a,
                              std::vector<double> D,
@@ -48,7 +49,11 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
                                                     topic_wrench_u_e, 5);
   wrench_pub_u_c_ = nh_.advertise<geometry_msgs::WrenchStamped>(
                                                     topic_wrench_u_c, 5);
-
+  // added for obstacle avoidance
+  laser_front_sub_ = nh_.subscribe(laser_front_topic, 1,
+                          &AdmittanceController::laser_front_callback, this,
+                          ros::TransportHints().reliable().tcpNoDelay());
+  obs_pub_ = nh_.advertise<geometry_msgs::PointStamped>("obstacles", 5);
   ft_arm_ready_ = false;
   arm_world_ready_ = false;
   base_world_ready_ = false;
@@ -66,6 +71,7 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
   kin_constraints_.topRightCorner(3, 3) << 0, -d_e_(2), d_e_(1),
                                            d_e_(2), 0, -d_e_(0),
                                            -d_e_(1), d_e_(0), 0;
+  obs_vector_.setZero();
 }
 
 // Makes sure all TFs exists before enabling all transformations in the callbacks
@@ -111,6 +117,7 @@ void AdmittanceController::run() {
   geometry_msgs::Twist platform_twist_cmd;
   geometry_msgs::Twist arm_twist_cmd;
   geometry_msgs::Twist arm_twist_world;
+  geometry_msgs::PointStamped obs_pub_msg;
   tf::TransformListener listener;
 
   // Init integrator
@@ -119,6 +126,9 @@ void AdmittanceController::run() {
 
   geometry_msgs::WrenchStamped wrench_u_e_;
   geometry_msgs::WrenchStamped wrench_u_c_;
+
+  desired_twist_platform.setZero();
+  desired_twist_arm.setZero();
 
   while(nh_.ok()) {
     // Dynamics computation
@@ -173,6 +183,13 @@ void AdmittanceController::run() {
         wrench_u_c_.wrench.torque.y = u_c_(4);
         wrench_u_c_.wrench.torque.z = u_c_(5);
         wrench_pub_u_c_.publish(wrench_u_c_);
+
+        obs_pub_msg.header.stamp = ros::Time::now();
+        obs_pub_msg.header.frame_id = "base_link";
+        obs_pub_msg.point.x = obs_vector_(0);
+        obs_pub_msg.point.y = obs_vector_(1);
+        obs_pub_msg.point.z = obs_vector_(2);
+        obs_pub_.publish(obs_pub_msg);
     }
 
     ros::spinOnce();
@@ -185,7 +202,10 @@ void AdmittanceController::compute_admittance(Vector6d &desired_twist_platform,
                                             Vector6d &desired_twist_arm,
                                             ros::Duration duration) {
   Vector6d x_ddot_p, x_ddot_a;
-  
+
+
+  // Here to check for collision avoidance
+
   x_ddot_p = M_p_.inverse()*(- D_p_ * desired_twist_platform 
                        + rotation_base_* kin_constraints_ *
                        (D_ * x_dot_a_ + K_ * (x_a_ - d_e_)));
@@ -195,6 +215,14 @@ void AdmittanceController::compute_admittance(Vector6d &desired_twist_platform,
 
   // Integrate for velocity based interface
   desired_twist_platform = desired_twist_platform + x_ddot_p * duration.toSec();
+
+  // Obstacle avoidance for the platform
+  if (obs_vector_.norm() > 0.2) {
+    desired_twist_platform.topRows(3) =
+      desired_twist_platform.topRows(3) -
+       (desired_twist_platform.topRows(3).dot(obs_vector_)*obs_vector_ /
+                                              obs_vector_.squaredNorm());
+  }
   desired_twist_arm = desired_twist_arm + x_ddot_a * duration.toSec();
 
   std::cout << "Desired twist arm: " << desired_twist_arm << std::endl;
@@ -279,6 +307,43 @@ void AdmittanceController::wrench_control_callback(
           msg->wrench.force.z,  msg->wrench.torque.x, msg->wrench.torque.y,
           msg->wrench.torque.z;
     u_c_ << rotation_world_base * wrench_control_world_frame;
+  }
+}
+
+// added for obstacle avoidance
+void AdmittanceController::laser_front_callback(
+        const sensor_msgs::LaserScanPtr msg) {
+  // converting to point cloud
+
+  ros::Time previous_time = ros::Time::now();
+  Eigen::Vector3d sum_vectors;
+  int n_vectors = 0;
+  sum_vectors.setZero();
+  obs_distance_thres_ = 1.0;
+
+  listener_laser_front_.waitForTransform("/base_link", msg->header.frame_id,
+                                         msg->header.stamp, ros::Duration(1.0));
+  if (base_world_ready_) {
+    projector_.transformLaserScanToPointCloud("base_link", *msg,
+                                              laser_front_cloud_,
+                                              listener_laser_front_, -1.0,
+                                      laser_geometry::channel_option::Intensity);
+
+    for (unsigned int i=0 ; i < laser_front_cloud_.points.size() ; i ++) {
+        Eigen::Vector3d cur_vector;
+        cur_vector << laser_front_cloud_.points.at(i).x,
+                      laser_front_cloud_.points.at(i).y,
+                      laser_front_cloud_.points.at(i).z;
+        if (cur_vector.norm() < obs_distance_thres_) {
+            sum_vectors = sum_vectors + cur_vector;
+            n_vectors++;
+        }
+    }
+    if (n_vectors > 0) {
+        obs_vector_ = sum_vectors/n_vectors;
+    }
+
+    std::cout << "Time spent" << ros::Time::now() - previous_time << std::endl;
   }
 }
 
