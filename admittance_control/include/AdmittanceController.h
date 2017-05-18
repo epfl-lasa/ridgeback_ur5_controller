@@ -147,6 +147,7 @@ protected:
   bool get_rotation_matrix(Matrix6d & rotation_matrix,
                            tf::TransformListener & listener,
                            std::string from_frame,  std::string to_frame);
+  void init_TF();
 
   void init_TF();
   double wrap_angle(double angle);

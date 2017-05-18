@@ -73,7 +73,7 @@ void AdmittanceController::init_TF() {
   tf::TransformListener listener;
   Matrix6d rot_matrix;
   rotation_base_.setZero();
-  // Get transform from arm base link to platform base link
+
   while (!get_rotation_matrix(rotation_base_, listener,
                                            "base_link", "ur5_arm_base_link")) {
     sleep(1);
@@ -113,6 +113,7 @@ void AdmittanceController::run() {
   geometry_msgs::Twist arm_twist_world;
   tf::TransformListener listener;
 
+  // Init integrator
   desired_twist_arm.setZero();
   desired_twist_platform.setZero();
 
@@ -194,12 +195,7 @@ void AdmittanceController::compute_admittance(Vector6d &desired_twist_platform,
 
   // Integrate for velocity based interface
   desired_twist_platform = desired_twist_platform + x_ddot_p * duration.toSec();
-  //desired_twist_platform = x_ddot_p;
-  //desired_twist_platform = x_dot_p_ + x_ddot_p * duration.toSec();
   desired_twist_arm = desired_twist_arm + x_ddot_a * duration.toSec();
-  //desired_twist_arm = x_ddot_a;
-  //desired_twist_arm = x_dot_a_ + x_ddot_a * duration.toSec();
-
 
   std::cout << "Desired twist arm: " << desired_twist_arm << std::endl;
   std::cout << "Desired twist platform: " << desired_twist_platform << std::endl;
