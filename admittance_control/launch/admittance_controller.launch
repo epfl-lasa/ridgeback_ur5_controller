@@ -3,9 +3,25 @@
   <!--
       Launch file for the admittance controller
   -->
-  <!-- Control and state topics -->
-  <arg name="STATE_TOPIC_ARM" default="/ur5/ur5_cartesian_velocity_controller/ee_state"/>
-  <arg name="CMD_TOPIC_ARM" default="/ur5/ur5_cartesian_velocity_controller/command_cart_vel" />
+  <arg name="sim" default="true"/>
+
+  <!-- Params for the real robot -->
+  <arg name="STATE_TOPIC_ARM" default="/ur5_cartesian_velocity_controller_sim/ee_state"/>
+  <arg name="CMD_TOPIC_ARM" default="/ur5_cartesian_velocity_controller_sim/command_cart_vel"/>
+  <arg name="WRENCH_FILTER_FACTOR" default="0.1" />
+  <arg name="FORCE_DEAD_ZONE_THRES" default="6.5" />
+  <arg name="TORQUE_DEAD_ZONE_THRES" default="0.5" />
+
+  <!-- Params for simulation -->
+  <group unless="$(arg sim)">
+    <arg name="STATE_TOPIC_ARM" default="/ur5/ur5_cartesian_velocity_controller/ee_state"/>
+    <arg name="CMD_TOPIC_ARM" default="/ur5/ur5_cartesian_velocity_controller/command_cart_vel"/>
+    <arg name="WRENCH_FILTER_FACTOR" default="0.9" />
+    <arg name="FORCE_DEAD_ZONE_THRES" default="0.1" />
+    <arg name="TORQUE_DEAD_ZONE_THRES" default="0.1" />
+  </group>
+
+  <!-- Other control and state topics -->
   <arg name="TOPIC_ARM_TWIST_WORLD" default="/ur5/ur5_cartesian_velocity_controller/cart_vel_world"/>
   <arg name="TOPIC_TWIST_U_E" default="/ur5/ur5_cartesian_velocity_controller_sim/wrench_u_e"/>
   <arg name="TOPIC_TWIST_U_C" default="/ur5/ur5_cartesian_velocity_controller_sim/wrench_u_c"/>
@@ -14,9 +30,6 @@
   <arg name="WRENCH_TOPIC" default="/wrench" />
   <arg name="ADMITTANCE_PARAMS_FILE" default="$(find admittance_control)/config/admittance_params_real.yaml" />
   <arg name="WRENCH_CONTROL_TOPIC" default="/wrench_control" />
-  <arg name="WRENCH_FILTER_FACTOR" default="0.1" />
-  <arg name="FORCE_DEAD_ZONE_THRES" default="6.5" />
-  <arg name="TORQUE_DEAD_ZONE_THRES" default="0.5" />
   <arg name="LASER_FRONT_TOPIC" default="/front/scan" />
   <arg name="LASER_REAR_TOPIC" default="/rear/scan" />
 
