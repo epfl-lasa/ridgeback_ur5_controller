@@ -20,8 +20,8 @@ def publisherCallback( msg ):
     try:
         listener.waitForTransform("/world", "/fake_force_pose", rospy.Time(0), rospy.Duration(10.0))
         (trans1,rot1) = listener.lookupTransform("/world", "/fake_force_pose", rospy.Time(0))
-        (trans2,rot2) = listener.lookupTransform("/world", "/FT300_link", rospy.Time(0))
-        (trans3,rot3) = listener.lookupTransform("/FT300_link", "/world",rospy.Time(0))
+        (trans2,rot2) = listener.lookupTransform("/world", "/robotiq_force_torque_frame_id", rospy.Time(0))
+        (trans3,rot3) = listener.lookupTransform("/robotiq_force_torque_frame_id", "/world",rospy.Time(0))
         # Publish the fake force
         fake_wrench = geometry_msgs.msg.WrenchStamped()
         trans1_mat = tf.transformations.translation_matrix(trans1)
@@ -38,7 +38,7 @@ def publisherCallback( msg ):
         fake_wrench.wrench.torque.x = euler[0]
         fake_wrench.wrench.torque.y = euler[1]
         fake_wrench.wrench.torque.z = euler[2]
-        fake_wrench.header.frame_id = "FT300_link"
+        fake_wrench.header.frame_id = "robotiq_force_torque_frame_id"
         fake_wrench.header.stamp = rospy.Time(0)
         wrench_pub.publish(fake_wrench)
     except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):

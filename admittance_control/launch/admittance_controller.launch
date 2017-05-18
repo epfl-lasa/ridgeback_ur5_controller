@@ -4,20 +4,32 @@
       Launch file for the admittance controller
   -->
   <!-- Control and state topics -->
-  <arg name="STATE_TOPIC_ARM" default="/ur5_cartesian_velocity_controller_sim/ee_state"/>
-  <arg name="CMD_TOPIC_ARM" default="/ur5_cartesian_velocity_controller_sim/command_cart_vel" />
+  <arg name="STATE_TOPIC_ARM" default="/ur5/ur5_cartesian_velocity_controller/ee_state"/>
+  <arg name="CMD_TOPIC_ARM" default="/ur5/ur5_cartesian_velocity_controller/command_cart_vel" />
+  <arg name="TOPIC_ARM_TWIST_WORLD" default="/ur5/ur5_cartesian_velocity_controller/cart_vel_world"/>
+  <arg name="TOPIC_TWIST_U_E" default="/ur5/ur5_cartesian_velocity_controller_sim/wrench_u_e"/>
+  <arg name="TOPIC_TWIST_U_C" default="/ur5/ur5_cartesian_velocity_controller_sim/wrench_u_c"/>
   <arg name="STATE_TOPIC_PLATFORM" default="/odometry/filtered"/>
   <arg name="CMD_TOPIC_PLATFORM" default="/cmd_vel" />
   <arg name="WRENCH_TOPIC" default="/wrench" />
   <arg name="ADMITTANCE_PARAMS_FILE" default="$(find admittance_control)/config/admittance_params_real.yaml" />
   <arg name="WRENCH_CONTROL_TOPIC" default="/wrench_control" />
+  <arg name="WRENCH_FILTER_FACTOR" default="0.1" />
+  <arg name="FORCE_DEAD_ZONE_THRES" default="6.5" />
+  <arg name="TORQUE_DEAD_ZONE_THRES" default="0.5" />
 
   <param name="state_topic_arm" value="$(arg STATE_TOPIC_ARM)"/>
   <param name="cmd_topic_arm" value="$(arg CMD_TOPIC_ARM)"/>
+  <param name="topic_arm_twist_world" value="$(arg TOPIC_ARM_TWIST_WORLD)"/>
+  <param name="topic_wrench_u_e" value="$(arg TOPIC_TWIST_U_E)"/>
+  <param name="topic_wrench_u_c" value="$(arg TOPIC_TWIST_U_C)"/>
   <param name="state_topic_platform" value="$(arg STATE_TOPIC_PLATFORM)"/>
   <param name="cmd_topic_platform" value="$(arg CMD_TOPIC_PLATFORM)"/>
   <param name="wrench_topic" value="$(arg WRENCH_TOPIC)"/>
   <param name="wrench_control_topic" value="$(arg WRENCH_CONTROL_TOPIC)"/>
+  <param name="wrench_filter_factor" value="$(arg WRENCH_FILTER_FACTOR)"/>
+  <param name="force_dead_zone_thres" value="$(arg FORCE_DEAD_ZONE_THRES)"/>
+  <param name="torque_dead_zone_thres" value="$(arg TORQUE_DEAD_ZONE_THRES)"/>
 
   <rosparam file="$(arg ADMITTANCE_PARAMS_FILE)" command="load"/>
 

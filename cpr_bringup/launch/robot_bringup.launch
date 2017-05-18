@@ -6,7 +6,7 @@
   <arg name="world_name" default="$(find cpr_bringup)/worlds/empty.world" />
 
   <!-- UR5 arm parameters (real robot) -->
-  <arg name="min_payload"  default="0.0"/>
+  <arg name="min_payload"  default="1.0"/>
   <arg name="max_payload"  default="3.0"/>
   <arg name="max_velocity" default="10.0"/>
   <arg name="prefix" default="ur5_arm_" />
@@ -19,32 +19,14 @@
 
   <!-- REAL ROBOT -->
   <group unless="$(arg sim)">
-    <!-- Real robot -->
-    <!-- We only need to launch the arm. The platform is already runnning
-         as it launches at startup (Check /opt/ros/indigo/init.d/) -->
-
-    <node name="ur_hardware_interface" pkg="ur_modern_driver" type="ur_driver"
-        output="screen" >
-      <param name="robot_ip_address" type="str" value="192.168.131.17"/>
-      <param name="min_payload" type="double" value="$(arg min_payload)"/>
-      <param name="max_payload" type="double" value="$(arg max_payload)"/>
-      <param name="max_velocity" type="double" value="$(arg max_velocity)"/>
-      <param name="use_ros_control" type="bool" value="True"/>
-      <param name="servoj_gain" type="double" value="750" />
-      <param name="prefix" value="$(arg prefix)" />
-      <param name="base_frame" type="str" value="$(arg base_frame)"/>
-      <param name="tool_frame" type="str" value="$(arg tool_frame)"/>
-    </node>
-
-    <!-- Convert joint states to /tf tranforms -->
-    <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher"/>
-
     <!-- F/T sensor -->
+
     <!-- URDF update for FT -->
     <node pkg="tf" type="static_transform_publisher" name="FT300_static" 
-      args="0.02 0.0 0.0 0.0 1.57 0.0 ur5_arm_ee_link robotiq_force_torque_frame_id 100" />
+      args="0.0 0.0 0.0 -1.57 0.0 0.0 FT300_link robotiq_force_torque_frame_id 5" />
 
-    <!-- For Reference, way to launch FT and gripper nodes: -->
+
+    <!-- FT sensor -->
     <node name="ft_sensor" pkg="robotiq_force_torque_sensor" 
       type="rq_sensor" respawn="true" output="screen" >
       <remap from="robotiq_force_torque_wrench" to="wrench"/>
@@ -53,6 +35,44 @@
     <!-- Bias the F/T sensor at startup -->
     <node pkg="rosservice" type="rosservice" name="ft_sensor_biaser" 
       args="call --wait /robotiq_force_torque_sensor_acc &quot;command: 'SET_ZRO'&quot; " />
+
+
+    <!-- We only need to launch the arm. The platform is already runnning
+         as it launches at startup (Check /opt/ros/indigo/init.d/) -->
+    <!-- UR5 ARM -->
+    <group ns="ur5">
+        <!-- Hardware interface for rso control-->
+        <node name="ur_hardware_interface" pkg="ur_modern_driver" type="ur_driver"
+            output="screen" >
+          <param name="robot_ip_address" type="str" value="192.168.131.17"/>
+          <param name="min_payload" type="double" value="$(arg min_payload)"/>
+          <param name="max_payload" type="double" value="$(arg max_payload)"/>
+          <param name="max_velocity" type="double" value="$(arg max_velocity)"/>
+          <param name="use_ros_control" type="bool" value="True"/>
+          <param name="servoj_gain" type="double" value="2000" />
+          <param name="prefix" value="$(arg prefix)" />
+          <param name="base_frame" type="str" value="$(arg base_frame)"/>
+          <param name="tool_frame" type="str" value="$(arg tool_frame)"/>
+        </node>
+
+        <!-- Convert joint states to /tf tranforms -->
+        <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher">
+          <rosparam param="publish_frequency">200</rosparam>
+        </node>
+
+        <!-- ROS control controllers -->
+        <!-- joint_state_controller (to publish states, an observer) -->
+        <rosparam file="$(find cpr_bringup)/controllers/joint_state_controller.yaml" command="load"/>
+        <node name="joint_state_controller_spawner" pkg="controller_manager"
+          type="controller_manager" args="spawn joint_state_controller" respawn="false" output="screen"/>
+
+        <!-- arm controller (to send commands to the arm) Uses the simulated velocity control
+          interface to gazebo -->
+        <rosparam file="$(find cpr_bringup)/controllers/ur5_vel_controller.yaml" command="load"/>
+        <node name="arm_controller_spawner" pkg="controller_manager"
+            type="controller_manager" args="spawn ur5_cartesian_velocity_controller"
+            respawn="false" output="screen"/>
+    </group>
 
   </group>
 
@@ -101,6 +121,9 @@
     <node name="urdf_spawner" pkg="gazebo_ros" type="spawn_model"
         args="-urdf -model ridgeback -param robot_description -x 0 -y 0 -z 0.1" />
 
+    <!-- FAKE FT sensor -->
+    <node pkg="tf" type="static_transform_publisher" name="FT300_static"
+      args="0.0 0.0 0.0 0.0 0.0 0.0 FT300_link robotiq_force_torque_frame_id 1" />
 
     <!-- RIDGEBACK PLATFORM CONTROLLERS -->
     <rosparam command="load" file="$(find ridgeback_control)/config/control.yaml" />
@@ -113,31 +136,20 @@
 
     <node pkg="topic_tools" type="relay" name="cmd_vel_relay"
       args="cmd_vel ridgeback_velocity_controller/cmd_vel" />
-  </group>
-  
 
+    <!-- UR5 ARM CONTROLLERS -->
+    <!-- joint_state_controller (to publish states, an observer) -->
+    <rosparam file="$(find cpr_bringup)/controllers/joint_state_controller.yaml" command="load"/>
+    <node name="joint_state_controller_spawner" pkg="controller_manager"
+      type="controller_manager" args="load joint_state_controller" respawn="false" output="screen"/>
 
-  <!-- UR5 ARM CONTROLLERS -->
-  <!-- joint_state_controller (to publish states, an observer) -->
-  <rosparam file="$(find cpr_bringup)/controllers/joint_state_controller.yaml" command="load"/>
-  <node name="joint_state_controller_spawner" pkg="controller_manager"
-    type="controller_manager" args="load joint_state_controller" respawn="false" output="screen"/>
-
-  <!-- arm controller (to send commands to the arm) Uses the simulated velocity control
-    interface to gazebo -->
-  <rosparam file="$(find cpr_bringup)/controllers/ur5_vel_controller.yaml" command="load"/>
-
-  <group if="$(arg sim)">
+    <!-- arm controller (to send commands to the arm) Uses the simulated velocity control
+      interface to gazebo -->
+    <rosparam file="$(find cpr_bringup)/controllers/ur5_vel_controller.yaml" command="load"/>
     <node name="arm_controller_spawner" pkg="controller_manager"
       type="controller_manager" args="load ur5_cartesian_velocity_controller_sim"
       respawn="false" output="screen"/>
   </group>
-
-  <group unless="$(arg sim)">
-  <!-- spawn controller manager -->
-    <node name="arm_controller_spawner" pkg="controller_manager"
-      type="controller_manager" args="load ur5_cartesian_velocity_controller"
-      respawn="false" output="screen"/>
-  </group>
+  
 </launch>
 

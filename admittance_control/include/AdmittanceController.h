@@ -70,12 +70,18 @@ protected:
   ros::Subscriber platform_sub_;
   // Publisher for the twist of arm endeffector
   ros::Publisher arm_pub_;
+  // Publisher for the twist of arm endeffector in the world frame
+  ros::Publisher arm_pub_world_;
   // Subscriber for the arm state
   ros::Subscriber arm_sub_;
   // Subscriber for the ft sensor at the endeffector
   ros::Subscriber wrench_sub_;
   // Subscriber for the ft sensor at the endeffector
   ros::Subscriber wrench_control_sub_;
+
+  // Subscriber for the admitance control forces in the ur5_arm_base_link, for rviz 
+  ros::Publisher wrench_pub_u_e_;
+  ros::Publisher wrench_pub_u_c_;
 
   // STATE VARIABLES:
   // x_p_, x_dot_p_, x_ddot_p -> Platform state and time derivatives
@@ -88,10 +94,14 @@ protected:
   //         (in ur5_arm_base_link frame)
   Vector6d x_a_, x_dot_a_;
   Vector6d x_p_, x_dot_p_;
-  Vector6d u_e_, u_c_;
+  Vector6d u_e_, u_c_;  
+  Vector6d twist_arm_world_frame_; // for publishing
+
 
   Matrix6d rotation_base_; // Transform from base_link to
                                          // ur5_arm_base_link
+  Matrix6d kin_constraints_; // Derivative of kinematic constraints
+                             // between the arm and the platform
 
   // ADMITTANCE PARAMETERS:
   // M_p_, M_a_ -> Desired mass of platform/arm
@@ -111,22 +121,44 @@ protected:
 
   tf::TransformListener listener_ft_;
   tf::TransformListener listener_control_;
+  tf::TransformListener listener_arm_;
+
+  // TF guards
+  bool ft_arm_ready_;
+  bool arm_world_ready_;
+  bool base_world_ready_;
+  bool world_arm_ready_;
+
+  // Processing parameters for the noisy wrench
+  double wrench_filter_factor_;
+  double force_dead_zone_thres_;
+  double torque_dead_zone_thres_;
 
   void compute_admittance(Vector6d & desired_twist_platform,
                      Vector6d & desired_vel_arm, ros::Duration cycle_time);
+  void get_arm_twist_world(Vector6d & twist_arm_world_frame,
+                           tf::TransformListener & listener);
 
   void state_platform_callback(const nav_msgs::OdometryConstPtr msg);
   void state_arm_callback(const cartesian_state_msgs::PoseTwistConstPtr msg);
   void wrench_callback(const geometry_msgs::WrenchStampedConstPtr msg);
   void wrench_control_callback(const geometry_msgs::WrenchStampedConstPtr msg);
-  Matrix6d get_rotation_matrix(tf::TransformListener & listener,
-                               std::string from_frame,  std::string to_frame);
+
+  bool get_rotation_matrix(Matrix6d & rotation_matrix,
+                           tf::TransformListener & listener,
+                           std::string from_frame,  std::string to_frame);
+
+  void init_TF();
+  double wrap_angle(double angle);
 
 public:
   AdmittanceController(ros::NodeHandle &n, double frequency,
                        std::string cmd_topic_platform,
                        std::string state_topic_platform,
                        std::string cmd_topic_arm,
+                       std::string topic_arm_twist_world,
+                       std::string topic_wrench_u_e,
+                       std::string topic_wrench_u_c,
                        std::string state_topic_arm,
                        std::string wrench_topic,
                        std::string wrench_control_topic,
@@ -136,7 +168,10 @@ public:
                        std::vector<double> D_p,
                        std::vector<double> D_a,
                        std::vector<double> K,
-                       std::vector<double> d_e);
+                       std::vector<double> d_e,
+                       double wrench_filter_factor,
+                       double force_dead_zone_thres,
+                       double torque_dead_zone_thres);
   void run();
 };
 

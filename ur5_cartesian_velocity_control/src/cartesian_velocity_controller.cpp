@@ -28,9 +28,9 @@ bool CartesianVelocityControllerBase<T>::init(
 
 
   // Topics
-  sub_command_ = n.subscribe("command_cart_vel", 1,
+  sub_command_ = n.subscribe("command_cart_vel", 5,
                          &CartesianVelocityControllerBase<T>::command_cart_vel,
-                         this);
+                         this,ros::TransportHints().reliable().tcpNoDelay());
 
   // Variable init
   this->joint_msr_.resize(this->kdl_chain_.getNrOfJoints());
