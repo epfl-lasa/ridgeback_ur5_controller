@@ -17,7 +17,7 @@
   <arg name="STATE_TOPIC_PLATFORM" default="/odometry/filtered"/>
   <arg name="CMD_TOPIC_PLATFORM" default="/cmd_vel" />
   <arg name="WRENCH_TOPIC" default="/wrench" />
-  <arg name="ADMITTANCE_PARAMS_FILE" default="$(find admittance_control)/config/admittance_params.yaml" />
+  <arg name="ADMITTANCE_PARAMS_FILE" default="$(find admittance_control)/config/admittance_params_real.yaml" />
   <arg name="WRENCH_CONTROL_TOPIC" default="/wrench_control" />
   <arg name="LASER_FRONT_TOPIC" default="/front/scan" />
   <arg name="LASER_REAR_TOPIC" default="/rear/scan" />
