@@ -203,9 +203,6 @@ void AdmittanceController::compute_admittance(Vector6d &desired_twist_platform,
                                             ros::Duration duration) {
   Vector6d x_ddot_p, x_ddot_a;
 
-
-  // Here to check for collision avoidance
-
   x_ddot_p = M_p_.inverse()*(- D_p_ * desired_twist_platform 
                        + rotation_base_* kin_constraints_ *
                        (D_ * x_dot_a_ + K_ * (x_a_ - d_e_)));
@@ -218,10 +215,19 @@ void AdmittanceController::compute_admittance(Vector6d &desired_twist_platform,
 
   // Obstacle avoidance for the platform
   if (obs_vector_.norm() > 0.2) {
-    desired_twist_platform.topRows(3) =
-      desired_twist_platform.topRows(3) -
-       (desired_twist_platform.topRows(3).dot(obs_vector_)*obs_vector_ /
+    if (desired_twist_platform.topRows(3).dot(obs_vector_) > 0.0) {
+        desired_twist_platform.topRows(3) =
+          desired_twist_platform.topRows(3) -
+            (desired_twist_platform.topRows(3).dot(obs_vector_)*obs_vector_ /
                                               obs_vector_.squaredNorm());
+    }
+    // Repelling velocity in case you get closer to the obstacle
+    if (obs_vector_.norm() < 0.75*obs_distance_thres_) {
+        desired_twist_platform.topRows(3) = desired_twist_platform.topRows(3)
+             + (obs_vector_ -
+                    (obs_vector_/obs_vector_.norm()) * 0.75*obs_distance_thres_);
+    }
+
   }
   desired_twist_arm = desired_twist_arm + x_ddot_a * duration.toSec();
 
@@ -341,6 +347,8 @@ void AdmittanceController::laser_front_callback(
     }
     if (n_vectors > 0) {
         obs_vector_ = sum_vectors/n_vectors;
+    } else {
+        obs_vector_.setZero();
     }
 
     std::cout << "Time spent" << ros::Time::now() - previous_time << std::endl;
