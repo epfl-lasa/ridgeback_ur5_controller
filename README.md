@@ -43,23 +43,16 @@ $ catkin_make
 ---
 
 
-
-
-
-
 ## Running the controller
 
 
 To bring up the robot in simulation run
 ```
 roslaunch cpr_bringup cpr_bringup.launch
+roslaunch admittance_control admittance_controller.launch
 ```
-For the real robot launch on the CPR main PC  
+For the real robot launch on the CPR main PC run
 ```
 roslaunch cpr_bringup cpr_bringup.launch sim:=false
-```
-
-To launch the admittance controller just run
-```
-roslaunch admittance_control admittance_controller.launch
+roslaunch admittance_control admittance_controller_real.launch
 ```
