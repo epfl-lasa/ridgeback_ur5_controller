@@ -15,7 +15,7 @@
 
   <!-- Configuration of Ridgeback which you would like to simulate.
        See ridgeback_description for details. -->
-  <arg name="config" default="base" />
+  <arg name="config" default="dual_hokuyo_lasers" />
 
   <!-- REAL ROBOT -->
   <group unless="$(arg sim)">

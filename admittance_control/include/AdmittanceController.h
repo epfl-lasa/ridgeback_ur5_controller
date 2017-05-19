@@ -26,7 +26,7 @@
 // 2) Sends a desired twist to the robot arm
 //
 // Communication interfaces:
-// - The desired twists are both send through ROS topics. 
+// - The desired twists are both sent through ROS topics.
 // The low level controllers of both the arm and the platform are 
 // implemented in ROS control.
 // NOTE: This node should be ideally a ROS
@@ -44,11 +44,22 @@
 // // Fill in topic names
 //
 // AdmittanceController admittance_controller(nh, frequency,
-//                                   cmd_topic_platform,
-//                                   state_topic_platform,
-//                                   cmd_topic_arm,
-//                                   state_topic_arm,
-//                                   wrench_topic);
+//                                           cmd_topic_platform,
+//                                           state_topic_platform,
+//                                           cmd_topic_arm,
+//                                           topic_arm_twist_world,
+//                                           topic_wrench_u_e,
+//                                           topic_wrench_u_c,
+//                                           state_topic_arm,
+//                                           wrench_topic,
+//                                           wrench_control_topic,
+//                                           laser_front_topic,
+//                                           laser_rear_topic,
+//                                           M_p, M_a, D, D_p, D_a, K, d_e,
+//                                           wrench_filter_factor,
+//                                           force_dead_zone_thres,
+//                                           torque_dead_zone_thres,
+//                                           obs_distance_thres);
 // admittance_controller.run();
 
 using namespace Eigen;
@@ -87,8 +98,9 @@ protected:
   ros::Publisher wrench_pub_u_e_;
   ros::Publisher wrench_pub_u_c_;
 
-  // Subscriber for the collision avoidance
+  // Subscriber for the lasers
   ros::Subscriber laser_front_sub_;
+  ros::Subscriber laser_rear_sub_;
 
   // STATE VARIABLES:
   // x_p_, x_dot_p_, x_ddot_p -> Platform state and time derivatives
@@ -103,7 +115,6 @@ protected:
   Vector6d x_p_, x_dot_p_;
   Vector6d u_e_, u_c_;  
   Vector6d twist_arm_world_frame_; // for publishing
-
 
   Matrix6d rotation_base_; // Transform from base_link to
                                          // ur5_arm_base_link
@@ -139,7 +150,6 @@ protected:
   // Distance threshold to consider an obstacle
   double obs_distance_thres_;
 
-
   // TF listeners
   tf::TransformListener listener_ft_;
   tf::TransformListener listener_control_;
@@ -168,10 +178,12 @@ protected:
   void wrench_callback(const geometry_msgs::WrenchStampedConstPtr msg);
   void wrench_control_callback(const geometry_msgs::WrenchStampedConstPtr msg);
   void laser_front_callback(const sensor_msgs::LaserScanPtr msg);
+  void laser_rear_callback(const sensor_msgs::LaserScanPtr msg);
 
   bool get_rotation_matrix(Matrix6d & rotation_matrix,
                            tf::TransformListener & listener,
                            std::string from_frame,  std::string to_frame);
+  void update_obstacles();
   void init_TF();
   double wrap_angle(double angle);
 
@@ -187,6 +199,7 @@ public:
                        std::string wrench_topic,
                        std::string wrench_control_topic,
                        std::string laser_front_topic,
+                       std::string laser_rear_topic,
                        std::vector<double> M_p,
                        std::vector<double> M_a,
                        std::vector<double> D,
@@ -196,7 +209,8 @@ public:
                        std::vector<double> d_e,
                        double wrench_filter_factor,
                        double force_dead_zone_thres,
-                       double torque_dead_zone_thres);
+                       double torque_dead_zone_thres,
+                       double obs_distance_thres);
   void run();
 };
 

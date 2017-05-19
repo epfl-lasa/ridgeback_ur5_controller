@@ -121,6 +121,11 @@ Visualization Manager:
           Show Axes: false
           Show Trail: false
           Value: true
+        rear_laser:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
         rear_left_wheel_link:
           Alpha: 1
           Show Axes: false
@@ -252,6 +257,8 @@ Visualization Manager:
           Value: false
         rear_cover_link:
           Value: false
+        rear_laser:
+          Value: true
         rear_left_wheel_link:
           Value: false
         rear_right_wheel_link:
@@ -314,6 +321,8 @@ Visualization Manager:
                 imu_link:
                   {}
                 rear_cover_link:
+                  {}
+                rear_laser:
                   {}
                 top_link:
                   arch_link:
@@ -400,7 +409,7 @@ Visualization Manager:
       Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
-      Max Intensity: 999999
+      Max Intensity: 0
       Min Color: 0; 0; 0
       Min Intensity: 0
       Name: LaserScan
@@ -411,6 +420,36 @@ Visualization Manager:
       Size (m): 0.01
       Style: Flat Squares
       Topic: /front/scan
+      Unreliable: false
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: true
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz/LaserScan
+      Color: 255; 255; 255
+      Color Transformer: Intensity
+      Decay Time: 0
+      Enabled: true
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Max Intensity: 0
+      Min Color: 0; 0; 0
+      Min Intensity: 0
+      Name: LaserScan
+      Position Transformer: XYZ
+      Queue Size: 10
+      Selectable: true
+      Size (Pixels): 3
+      Size (m): 0.01
+      Style: Flat Squares
+      Topic: /rear/scan
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
@@ -446,15 +485,15 @@ Visualization Manager:
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0.0469375
-        Y: -0.19798
+        X: 1.26336
+        Y: 0.496336
         Z: 1.12104e-44
       Name: Current View
       Near Clip Distance: 0.01
-      Pitch: 0.554797
+      Pitch: 0.579797
       Target Frame: ur5_arm_base
       Value: XYOrbit (rviz)
-      Yaw: 0.9213
+      Yaw: 1.6313
     Saved: ~
 Window Geometry:
   Displays:
@@ -472,5 +511,5 @@ Window Geometry:
   Views:
     collapsed: false
   Width: 1855
-  X: 1985
+  X: 65
   Y: 24
