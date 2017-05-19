@@ -4,11 +4,11 @@
       Launch file for the admittance controller
   -->
 
-  <arg name="STATE_TOPIC_ARM" default="/ur5_cartesian_velocity_controller_sim/ee_state"/>
-  <arg name="CMD_TOPIC_ARM" default="/ur5_cartesian_velocity_controller_sim/command_cart_vel"/>
-  <arg name="WRENCH_FILTER_FACTOR" default="1.0" />
-  <arg name="FORCE_DEAD_ZONE_THRES" default="0.0" />
-  <arg name="TORQUE_DEAD_ZONE_THRES" default="0.0" />
+  <arg name="STATE_TOPIC_ARM" default="/ur5/ur5_cartesian_velocity_controller/ee_state"/>
+  <arg name="CMD_TOPIC_ARM" default="/ur5_cartesian_velocity_controller/command_cart_vel"/>
+  <arg name="WRENCH_FILTER_FACTOR" default="0.1" />
+  <arg name="FORCE_DEAD_ZONE_THRES" default="6.5" />
+  <arg name="TORQUE_DEAD_ZONE_THRES" default="0.5" />
 
   <!-- Other control and state topics -->
   <arg name="TOPIC_ARM_TWIST_WORLD" default="/ur5/ur5_cartesian_velocity_controller/cart_vel_world"/>
