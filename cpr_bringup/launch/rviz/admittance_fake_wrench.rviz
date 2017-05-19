@@ -27,7 +27,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: ""
+    SyncSource: LaserScan
 Visualization Manager:
   Class: ""
   Displays:
@@ -232,6 +232,8 @@ Visualization Manager:
           Value: true
         chassis_link:
           Value: false
+        fake_force_pose:
+          Value: true
         front_cover_link:
           Value: false
         front_laser:
@@ -256,6 +258,8 @@ Visualization Manager:
           Value: false
         rear_rocker_link:
           Value: false
+        robotiq_force_torque_frame_id:
+          Value: true
         top_link:
           Value: false
         ur5_arm_base:
@@ -287,6 +291,8 @@ Visualization Manager:
       Show Names: true
       Tree:
         world:
+          fake_force_pose:
+            {}
           odom:
             base_link:
               chassis_link:
@@ -324,7 +330,8 @@ Visualization Manager:
                             ur5_arm_wrist_3_link:
                               ur5_arm_ee_link:
                                 FT300_link:
-                                  {}
+                                  robotiq_force_torque_frame_id:
+                                    {}
                               ur5_arm_tool0:
                                 {}
       Update Interval: 0
@@ -368,6 +375,46 @@ Visualization Manager:
       Torque Color: 204; 204; 51
       Unreliable: false
       Value: true
+    - Alpha: 1
+      Class: rviz/PointStamped
+      Color: 204; 41; 204
+      Enabled: true
+      History Length: 1
+      Name: PointStamped
+      Radius: 0.2
+      Topic: /obstacles
+      Unreliable: false
+      Value: true
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz/LaserScan
+      Color: 255; 255; 255
+      Color Transformer: Intensity
+      Decay Time: 0
+      Enabled: true
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Max Intensity: 999999
+      Min Color: 0; 0; 0
+      Min Intensity: 0
+      Name: LaserScan
+      Position Transformer: XYZ
+      Queue Size: 10
+      Selectable: true
+      Size (Pixels): 3
+      Size (m): 0.01
+      Style: Flat Squares
+      Topic: /front/scan
+      Unreliable: false
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -392,7 +439,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 7.43569
+      Distance: 12.931
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.06
         Stereo Focal Distance: 1
@@ -404,10 +451,10 @@ Visualization Manager:
         Z: 1.12104e-44
       Name: Current View
       Near Clip Distance: 0.01
-      Pitch: 0.494797
+      Pitch: 0.554797
       Target Frame: ur5_arm_base
       Value: XYOrbit (rviz)
-      Yaw: 5.64948
+      Yaw: 0.9213
     Saved: ~
 Window Geometry:
   Displays:
