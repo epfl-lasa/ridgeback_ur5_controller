@@ -2854,9 +2854,6 @@
       <pose>4.55618 -4 0 0 -0 0</pose>
     </model>
     <state world_name='default'>
-      <sim_time>1517 346000000</sim_time>
-      <real_time>258 967264114</real_time>
-      <wall_time>1411659762 999867608</wall_time>
       <model name='drc_practice_angled_barrier_135'>
         <pose>-6.19884 8.64913 0 0 0 -2.35209</pose>
         <link name='eight::link'>
