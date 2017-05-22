@@ -2,7 +2,7 @@
   <!-- PARAMS -->
   <arg name="sim" default="true"/>
   <arg name="bringup_falcon" default="false"/>
-  <arg name="world_name" default="$(find cpr_bringup)/worlds/empty.world"/>
+  <arg name="world_name" default="$(find cpr_bringup)/worlds/bifurcation.world"/>
 
   <!-- SET WORLD FRAME -->
   <node pkg="tf" type="static_transform_publisher" name="link1_broadcaster" 

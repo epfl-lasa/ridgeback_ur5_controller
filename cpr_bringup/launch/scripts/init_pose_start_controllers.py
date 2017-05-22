@@ -26,6 +26,13 @@ def pause_gazebo():
 def unpause_gazebo():
     subprocess.check_call("rosservice call /gazebo/unpause_physics", shell=True)
 
+def clear_wrenches():
+    subprocess.check_call("rosservice call /gazebo/clear_body_wrenches \"body_name: 'ridgeback'\"", shell=True)
+
+def reset_world():
+    subprocess.check_call("rosservice call /gazebo/reset_world", shell=True)
+
+
 def start_ros_controllers():
     start_controllers_client = rospy.ServiceProxy(SWITCH_CONTROLLER, SwitchController)
     req = SwitchControllerRequest()
@@ -40,5 +47,7 @@ def start_ros_controllers():
 if __name__ == "__main__":
     pause_gazebo()
     set_initial_pose_gazebo()
+    clear_wrenches()
     unpause_gazebo()
     start_ros_controllers()
+

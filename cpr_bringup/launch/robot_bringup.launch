@@ -82,7 +82,7 @@
     <include file="$(find gazebo_ros)/launch/empty_world.launch">
       <arg name="paused" value="$(arg paused)" />
       <arg name="debug" value="0" />
-      <arg name="gui" value="false" />
+      <arg name="gui" value="true" />
       <arg name="use_sim_time" value="$(arg use_sim_time)" />
       <arg name="headless" value="$(arg headless)" />
       <arg name="world_name" value="$(arg world_name)" />
@@ -119,7 +119,7 @@
 
     <!-- SPAWN FULL ROBOT -->
     <node name="urdf_spawner" pkg="gazebo_ros" type="spawn_model"
-        args="-urdf -model ridgeback -param robot_description -x 0 -y 0 -z 0.1" />
+        args="-urdf -model ridgeback -param robot_description -x 3.0 -y -5.0 -z 0.03" />
 
     <!-- FAKE FT sensor -->
     <node pkg="tf" type="static_transform_publisher" name="FT300_static"
@@ -129,7 +129,7 @@
     <rosparam command="load" file="$(find ridgeback_control)/config/control.yaml" />
 
     <node name="ridgeback_controller_spawner" pkg="controller_manager" type="controller_manager"
-      args="spawn ridgeback_joint_publisher ridgeback_velocity_controller"
+      args="load ridgeback_joint_publisher ridgeback_velocity_controller"
       respawn="false" output="screen"/>
 
     <node pkg="robot_localization" type="ekf_localization_node" name="ekf_localization" />
