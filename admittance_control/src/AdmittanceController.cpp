@@ -29,9 +29,9 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
                              D_p_(D_p.data()), D_a_(D_a.data()), K_(K.data()),
                              d_e_(d_e.data()),
                              wrench_filter_factor_(wrench_filter_factor),
+                             obs_distance_thres_(obs_distance_thres),
                              force_dead_zone_thres_(force_dead_zone_thres),
-                             torque_dead_zone_thres_(torque_dead_zone_thres),
-                             obs_distance_thres_(obs_distance_thres) {
+                             torque_dead_zone_thres_(torque_dead_zone_thres) {
   platform_pub_ = nh_.advertise<geometry_msgs::Twist>(cmd_topic_platform, 5);
   platform_sub_ = nh_.subscribe(state_topic_platform, 5,
                           &AdmittanceController::state_platform_callback, this,
@@ -210,15 +210,19 @@ void AdmittanceController::compute_admittance(Vector6d &desired_twist_platform,
                                             ros::Duration duration) {
   Vector6d x_ddot_p, x_ddot_a;
 
+  // Translation
   x_ddot_p = M_p_.inverse()*(- D_p_ * desired_twist_platform 
                        + rotation_base_* kin_constraints_ *
                        (D_ * x_dot_a_ + K_ * (x_a_ - d_e_)));
   x_ddot_a = M_a_.inverse()*( - (D_ + D_a_) *(desired_twist_arm)
                                 - K_ * (x_a_ - d_e_) + u_e_ + u_c_);
 
+  // TODO: Rotation
+  //Eigen::AngleAxisd quat_arm * quat_des.inverse()
 
   // Integrate for velocity based interface
   desired_twist_platform = desired_twist_platform + x_ddot_p * duration.toSec();
+  desired_twist_arm = desired_twist_arm + x_ddot_a * duration.toSec();
 
   // Obstacle avoidance for the platform
   if (obs_vector_.norm() > 0.2) {
@@ -236,7 +240,7 @@ void AdmittanceController::compute_admittance(Vector6d &desired_twist_platform,
     }
 
   }
-  desired_twist_arm = desired_twist_arm + x_ddot_a * duration.toSec();
+
 
   std::cout << "Desired twist arm: " << desired_twist_arm << std::endl;
   std::cout << "Desired twist platform: " << desired_twist_platform << std::endl;
