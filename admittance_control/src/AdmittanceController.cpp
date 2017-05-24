@@ -178,35 +178,32 @@ void AdmittanceController::run() {
     arm_pub_world_.publish(arm_twist_world);
 
     // publishing useful visualization for debugging
-    if(true)
-    {
-        wrench_u_e_.header.stamp = ros::Time::now();
-        wrench_u_e_.header.frame_id = "ur5_arm_base_link";
-        wrench_u_e_.wrench.force.x = u_e_(0);
-        wrench_u_e_.wrench.force.y = u_e_(1);
-        wrench_u_e_.wrench.force.z = u_e_(2);
-        wrench_u_e_.wrench.torque.x = u_e_(3);
-        wrench_u_e_.wrench.torque.y = u_e_(4);
-        wrench_u_e_.wrench.torque.z = u_e_(5);
-        wrench_pub_u_e_.publish(wrench_u_e_);
+    wrench_u_e_.header.stamp = ros::Time::now();
+    wrench_u_e_.header.frame_id = "ur5_arm_base_link";
+    wrench_u_e_.wrench.force.x = u_e_(0);
+    wrench_u_e_.wrench.force.y = u_e_(1);
+    wrench_u_e_.wrench.force.z = u_e_(2);
+    wrench_u_e_.wrench.torque.x = u_e_(3);
+    wrench_u_e_.wrench.torque.y = u_e_(4);
+    wrench_u_e_.wrench.torque.z = u_e_(5);
+    wrench_pub_u_e_.publish(wrench_u_e_);
 
-        wrench_u_c_.header.stamp = ros::Time::now();
-        wrench_u_c_.header.frame_id = "ur5_arm_base_link";
-        wrench_u_c_.wrench.force.x = u_c_(0);
-        wrench_u_c_.wrench.force.y = u_c_(1);
-        wrench_u_c_.wrench.force.z = u_c_(2);
-        wrench_u_c_.wrench.torque.x = u_c_(3);
-        wrench_u_c_.wrench.torque.y = u_c_(4);
-        wrench_u_c_.wrench.torque.z = u_c_(5);
-        wrench_pub_u_c_.publish(wrench_u_c_);
+    wrench_u_c_.header.stamp = ros::Time::now();
+    wrench_u_c_.header.frame_id = "ur5_arm_base_link";
+    wrench_u_c_.wrench.force.x = u_c_(0);
+    wrench_u_c_.wrench.force.y = u_c_(1);
+    wrench_u_c_.wrench.force.z = u_c_(2);
+    wrench_u_c_.wrench.torque.x = u_c_(3);
+    wrench_u_c_.wrench.torque.y = u_c_(4);
+    wrench_u_c_.wrench.torque.z = u_c_(5);
+    wrench_pub_u_c_.publish(wrench_u_c_);
 
-        obs_pub_msg.header.stamp = ros::Time::now();
-        obs_pub_msg.header.frame_id = "base_link";
-        obs_pub_msg.point.x = obs_vector_(0);
-        obs_pub_msg.point.y = obs_vector_(1);
-        obs_pub_msg.point.z = obs_vector_(2);
-        obs_pub_.publish(obs_pub_msg);
-    }
+    obs_pub_msg.header.stamp = ros::Time::now();
+    obs_pub_msg.header.frame_id = "base_link";
+    obs_pub_msg.point.x = obs_vector_(0);
+    obs_pub_msg.point.y = obs_vector_(1);
+    obs_pub_msg.point.z = obs_vector_(2);
+    obs_pub_.publish(obs_pub_msg);
 
     // For obstacle avoidance
     update_obstacles();
