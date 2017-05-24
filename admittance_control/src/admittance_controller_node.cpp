@@ -77,6 +77,12 @@ int main(int argc, char **argv)
     return -1;
   }
 
+  if (!nh.getParam("laser_rear_topic", laser_rear_topic))
+  {
+    ROS_ERROR("Couldn't retrieve the laser_rear_topic. ");
+    return -1;
+  }
+
   // ADMITTANCE PARAMS
   if (!nh.getParam("mass_platform", M_p))
   {

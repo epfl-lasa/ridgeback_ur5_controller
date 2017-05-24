@@ -236,8 +236,8 @@ void AdmittanceController::compute_admittance(Vector6d &desired_twist_platform,
   desired_twist_platform = desired_twist_platform + x_ddot_p * duration.toSec();
   desired_twist_arm = desired_twist_arm + x_ddot_a * duration.toSec();
 
-  std::cout << "Desired twist arm: " << desired_twist_arm << std::endl;
-  std::cout << "Desired twist platform: " << desired_twist_platform << std::endl;
+  //std::cout << "Desired twist arm: " << desired_twist_arm << std::endl;
+  //std::cout << "Desired twist platform: " << desired_twist_platform << std::endl;
 }
 
 /////////////////
@@ -271,8 +271,6 @@ void AdmittanceController::state_arm_callback(
   x_a_(3) = wrap_angle(x_a_(3));
   x_a_(4) = wrap_angle(x_a_(4));
   x_a_(5) = wrap_angle(x_a_(5));
-
-  std::cout << "Wrapped angle: " << x_a_.bottomRows(3) << std::endl;
 
   x_dot_a_ << msg->twist.linear.x, msg->twist.linear.y,
           msg->twist.linear.z, msg->twist.angular.x, msg->twist.angular.y,
@@ -352,17 +350,23 @@ void AdmittanceController::laser_rear_callback(
 //////////////////////////
 void AdmittanceController::avoid_obstacles(Vector6d &desired_twist_platform) {
   // Assumption: if obs_vector = (0,0,0) there is no obstacle
+  double hard_threshold = obs_distance_thres_ / 2.0;
   if (obs_vector_.norm() > 0.01) {
     Vector3d closest_point = get_closest_point_on_platform(obs_vector_);
     Vector3d obs_closest_point_frame = obs_vector_ - closest_point;
+    obs_closest_point_frame(2) = 0.0;
     // If there is a component of the velocity driving the platform to the
     // obstacle ...
     if (desired_twist_platform.topRows(3).dot(obs_closest_point_frame) > 0.0) {
-        // ... remove it
-        desired_twist_platform.topRows(3) =
-          desired_twist_platform.topRows(3) -
+        // ... remove it lineary until fully removed at hard_threshold
+        double factor = (1.0 - ((obs_closest_point_frame.norm()
+                                - (obs_distance_thres_ - hard_threshold))
+                                / hard_threshold));
+        factor = std::min(std::max(factor, 0.0), 1.0);
+        desired_twist_platform.topRows(3) = desired_twist_platform.topRows(3)
+            - factor *
             (desired_twist_platform.topRows(3).dot(obs_closest_point_frame)
-                  * obs_closest_point_frame / obs_closest_point_frame.squaredNorm());
+            * obs_closest_point_frame / obs_closest_point_frame.squaredNorm());
     }
   }
 }
@@ -373,7 +377,7 @@ Vector3d AdmittanceController::get_closest_point_on_platform(Vector3d obstacle) 
   // base_link is placed in the middle
   closest_point(0) = ((obstacle(0) > 0) - (obstacle(0) < 0)) //sign
                                   * std::min(fabs(obstacle(0)), 0.48);
-  closest_point(1) = ((obstacle(1) > 1) - (obstacle(1) < 0)) //sign
+  closest_point(1) = ((obstacle(1) > 0) - (obstacle(1) < 0)) //sign
                                   * std::min(fabs(obstacle(1)), 0.4);
   closest_point(2) = obstacle(2);
 
@@ -401,7 +405,7 @@ void AdmittanceController::update_obstacles() {
     cur_vector_rear << laser_rear_cloud_.points.at(i).x,
       laser_rear_cloud_.points.at(i).y,
       laser_rear_cloud_.points.at(i).z;
-         std::cout << "Point: ";
+
     if (isObstacleMeasurement(cur_vector_rear)) {
       sum_vectors = sum_vectors + cur_vector_rear;
       n_vectors++;

@@ -21,7 +21,7 @@
   <arg name="WRENCH_CONTROL_TOPIC" default="/wrench_control" />
   <arg name="LASER_FRONT_TOPIC" default="/front/scan" />
   <arg name="LASER_REAR_TOPIC" default="/rear/scan" />
-  <arg name="OBS_DISTANCE_THRES" default="0.2" />
+  <arg name="OBS_DISTANCE_THRES" default="0.4" />
   <arg name="SELF_DETECT_THRES" default="0.02" />
 
   <param name="state_topic_arm" value="$(arg STATE_TOPIC_ARM)"/>
