@@ -39,9 +39,18 @@
 // USAGE EXAMPLE;
 // ros::NodeHandle nh;
 // double frequency = 1000.0;
-// std::string state_topic_arm, cmd_topic_arm,
-// cmd_topic_platform, state_topic_platform, wrench_topic;
-// // Fill in topic names
+// std::string state_topic_arm, cmd_topic_arm, topic_arm_twist_world,
+//   topic_wrench_u_e, topic_wrench_u_c, cmd_topic_platform,
+//   state_topic_platform, wrench_topic, wrench_control_topic,
+//   laser_front_topic, laser_rear_topic;
+// std::vector<double> M_p, M_a, D, D_p, D_a, K, d_e;
+// double wrench_filter_factor, force_dead_zone_thres,
+//    torque_dead_zone_thres, obs_distance_thres, self_detect_thres;
+//
+//
+// // Fill in values
+// ...
+//
 //
 // AdmittanceController admittance_controller(nh, frequency,
 //                                           cmd_topic_platform,
@@ -59,7 +68,8 @@
 //                                           wrench_filter_factor,
 //                                           force_dead_zone_thres,
 //                                           torque_dead_zone_thres,
-//                                           obs_distance_thres);
+//                                           obs_distance_thres,
+//                                           self_detect_thres);
 // admittance_controller.run();
 
 using namespace Eigen;
@@ -138,17 +148,24 @@ protected:
   //              - D_a_ x_dot_a_ + K_(x_p_ - x_a_ - d_e_)) + u_e_
   //
 
+  // OBSTACLE AVOIDANCE:
   // Vector defining the position of an obstacle in the base_link
   // If no obstacle is detected then it is set to 0
   Eigen::Vector3d obs_vector_;
 
-  // Point cloud from the laser scan
+  // The robot assumes that there is one single obstacle and all measurements
+  // between self_detect_thres_ and obs_distance_thres_ are considered parts of the
+  // same obstacle
+  // Maximum distance threshold to consider an obstacle
+  double obs_distance_thres_;
+  // Threshold starting at the end of the platform to consider an obstacle
+  // to avoid self detections like cables
+  double self_detect_thres_;
+
+  // Point cloud from the laser scans
   laser_geometry::LaserProjection projector_;
   sensor_msgs::PointCloud laser_front_cloud_;
   sensor_msgs::PointCloud laser_rear_cloud_;
-
-  // Distance threshold to consider an obstacle
-  double obs_distance_thres_;
 
   // TF listeners
   tf::TransformListener listener_ft_;
@@ -168,11 +185,20 @@ protected:
   double force_dead_zone_thres_;
   double torque_dead_zone_thres_;
 
+  // Initialization
+  void init_TF();
+
+  // Control
   void compute_admittance(Vector6d & desired_twist_platform,
                      Vector6d & desired_vel_arm, ros::Duration cycle_time);
-  void get_arm_twist_world(Vector6d & twist_arm_world_frame,
-                           tf::TransformListener & listener);
+  void avoid_obstacles(Vector6d &desired_twist_platform);
 
+  // Obstacle avoidance
+  Vector3d get_closest_point_on_platform(Vector3d obstacle);
+  void update_obstacles();
+  bool isObstacleMeasurement(Vector3d &measurement);
+
+  // Callbacks
   void state_platform_callback(const nav_msgs::OdometryConstPtr msg);
   void state_arm_callback(const cartesian_state_msgs::PoseTwistConstPtr msg);
   void wrench_callback(const geometry_msgs::WrenchStampedConstPtr msg);
@@ -180,11 +206,13 @@ protected:
   void laser_front_callback(const sensor_msgs::LaserScanPtr msg);
   void laser_rear_callback(const sensor_msgs::LaserScanPtr msg);
 
+  // Util
   bool get_rotation_matrix(Matrix6d & rotation_matrix,
                            tf::TransformListener & listener,
                            std::string from_frame,  std::string to_frame);
-  void update_obstacles();
-  void init_TF();
+
+  void get_arm_twist_world(Vector6d & twist_arm_world_frame,
+                           tf::TransformListener & listener);
   double wrap_angle(double angle);
 
 public:
@@ -210,7 +238,8 @@ public:
                        double wrench_filter_factor,
                        double force_dead_zone_thres,
                        double torque_dead_zone_thres,
-                       double obs_distance_thres);
+                       double obs_distance_thres,
+                       double self_detect_thres);
   void run();
 };
 

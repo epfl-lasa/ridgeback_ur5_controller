@@ -21,7 +21,8 @@
   <arg name="WRENCH_CONTROL_TOPIC" default="/wrench_control" />
   <arg name="LASER_FRONT_TOPIC" default="/front/scan" />
   <arg name="LASER_REAR_TOPIC" default="/rear/scan" />
-  <arg name="OBS_DISTANCE_THRES" default="1.0" />
+  <arg name="OBS_DISTANCE_THRES" default="0.2" />
+  <arg name="SELF_DETECT_THRES" default="0.02" />
 
   <param name="state_topic_arm" value="$(arg STATE_TOPIC_ARM)"/>
   <param name="cmd_topic_arm" value="$(arg CMD_TOPIC_ARM)"/>
@@ -37,6 +38,8 @@
   <param name="torque_dead_zone_thres" value="$(arg TORQUE_DEAD_ZONE_THRES)"/>
   <param name="laser_front_topic" value="$(arg LASER_FRONT_TOPIC)"/>
   <param name="laser_rear_topic" value="$(arg LASER_REAR_TOPIC)"/>
+  <param name="obs_distance_thres" value="$(arg OBS_DISTANCE_THRES)"/>
+  <param name="self_detect_thres" value="$(arg SELF_DETECT_THRES)"/>
 
   <rosparam file="$(arg ADMITTANCE_PARAMS_FILE)" command="load"/>
 
