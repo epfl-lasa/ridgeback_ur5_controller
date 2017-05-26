@@ -74,6 +74,7 @@
 
 using namespace Eigen;
 
+typedef Matrix<double,7,1> Vector7d;
 typedef Matrix<double,6,1> Vector6d;
 typedef Matrix<double,6,6> Matrix6d;
 
@@ -108,21 +109,25 @@ protected:
   ros::Publisher wrench_pub_u_e_;
   ros::Publisher wrench_pub_u_c_;
 
-  // Subscriber for the lasers
+  // Subscribers for the lasers
   ros::Subscriber laser_front_sub_;
   ros::Subscriber laser_rear_sub_;
 
   // STATE VARIABLES:
-  // x_p_, x_dot_p_, x_ddot_p -> Platform state and time derivatives
+  // x_p_position_, x_p_orientation_, x_dot_p_, x_ddot_p ->
+  //                             Platform state and time derivatives
   //                             (in platform base_link)
-  // x_a_, x_dot_a_, x_ddot_a -> Arm state and time derivatives
+  // x_a_position_, x_a_orientation_, x_dot_a_, x_ddot_a ->
+  //                             Arm state and time derivatives
   //                             (in ur5_arm_base_link frame)
   // u_e_ -> external wrench (force/torque sensor)
   //         (in ur5_arm_base_link frame)
   // u_c_ -> control wrench (from yout goal-oriented controller)
   //         (in ur5_arm_base_link frame)
-  Vector6d x_a_, x_dot_a_;
-  Vector6d x_p_, x_dot_p_;
+  Vector3d x_a_position_, x_p_position_;
+  Quaterniond x_a_orientation_, x_p_orientation_;
+  Vector6d x_dot_a_;
+  Vector6d x_dot_p_;
   Vector6d u_e_, u_c_;  
   Vector6d twist_arm_world_frame_; // for publishing
 
@@ -136,17 +141,18 @@ protected:
   // D_ -> Desired damping of the coupling
   // K_ -> Desired Stiffness of the coupling
   // D_p_, D_a_ -> Desired damping of platform/arm
-  // d_e_ -> equilibrium point of the coupling spring
+  // d_e_position_ -> equilibrium position of the coupling spring
+  // d_e_orientation -> equilibrium orientation of the coupling spring
   Matrix6d M_p_, M_a_, D_, D_p_, D_a_, K_;
-  Vector6d d_e_;
+  Vector3d d_e_position_;
+  Quaterniond d_e_orientation_;
 
 
   // RENDERED DYNAMICS:
-  // x_ddot_p = M_p_^{-1}(-D_*(x_dot_p_ - x_dot_a_)
-  //              - D_p_ x_dot_p_ - K_(x_p_ - x_a_ - d_e_))
-  // x_ddot_a = M_a_^{-1}(-D_*(x_dot_p_ - x_dot_a_)
-  //              - D_a_ x_dot_a_ + K_(x_p_ - x_a_ - d_e_)) + u_e_
-  //
+  // x_ddot_p = M_p_^{-1}(+D_*(x_dot_a_)
+  //              - D_p_ x_dot_p_ + K_(error))
+  // x_ddot_a = M_a_^{-1}(-D_*(x_dot_a_)
+  //              - D_a_ x_dot_a_ - K_(error)) + u_e_
 
   // OBSTACLE AVOIDANCE:
   // Vector defining the position of an obstacle in the base_link
@@ -167,20 +173,22 @@ protected:
   sensor_msgs::PointCloud laser_front_cloud_;
   sensor_msgs::PointCloud laser_rear_cloud_;
 
-  // TF listeners
+  // TF:
+  // Listeners
   tf::TransformListener listener_ft_;
   tf::TransformListener listener_control_;
   tf::TransformListener listener_arm_;
   tf::TransformListener listener_laser_front_;
   tf::TransformListener listener_laser_rear_;
 
-  // TF guards
+  // Guards
   bool ft_arm_ready_;
   bool arm_world_ready_;
   bool base_world_ready_;
   bool world_arm_ready_;
 
-  // Processing parameters for the noisy wrench
+  // FT FILTER:
+  // Parameters for the noisy wrench
   double wrench_filter_factor_;
   double force_dead_zone_thres_;
   double torque_dead_zone_thres_;
@@ -213,7 +221,6 @@ protected:
 
   void get_arm_twist_world(Vector6d & twist_arm_world_frame,
                            tf::TransformListener & listener);
-  double wrap_angle(double angle);
 
 public:
   AdmittanceController(ros::NodeHandle &n, double frequency,

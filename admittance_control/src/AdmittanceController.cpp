@@ -28,7 +28,6 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
                              nh_(n), loop_rate_(frequency),
                              M_p_(M_p.data()), M_a_(M_a.data()), D_(D.data()),
                              D_p_(D_p.data()), D_a_(D_a.data()), K_(K.data()),
-                             d_e_(d_e.data()),
                              obs_distance_thres_(obs_distance_thres),
                              self_detect_thres_(self_detect_thres),
                              wrench_filter_factor_(wrench_filter_factor),
@@ -73,14 +72,21 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
   u_e_.setZero();
   u_c_.setZero();
 
+  Vector7d d_e_full(d_e.data());
+  d_e_position_ << d_e_full.topRows(3);
+  // Make sure the orientation goal is normalized
+  d_e_orientation_.coeffs() << d_e_full.bottomRows(4) /
+                               d_e_full.bottomRows(4).norm();
+
   // Kinematic constraints between base and arm at the equilibrium
   kin_constraints_.setZero();
   kin_constraints_.topLeftCorner(3, 3).setIdentity();
   kin_constraints_.bottomRightCorner(3, 3).setIdentity();
-  // Screw due to the torque
-  kin_constraints_.topRightCorner(3, 3) << 0, -d_e_(2), d_e_(1),
-                                           d_e_(2), 0, -d_e_(0),
-                                           -d_e_(1), d_e_(0), 0;
+  // Screw on the z torque axis
+  kin_constraints_.topRightCorner(3, 3) <<
+                                        0, 0, d_e_position_(1),
+                                        0, 0, -d_e_position_(0),
+                                        0, 0, 0;
   obs_vector_.setZero();
   laser_front_cloud_.points.resize(0);
   laser_rear_cloud_.points.resize(0);
@@ -177,7 +183,7 @@ void AdmittanceController::run() {
     arm_pub_.publish(arm_twist_cmd);
     arm_pub_world_.publish(arm_twist_world);
 
-    // publishing useful visualization for debugging
+    // publishing visualization/debugging info
     wrench_u_e_.header.stamp = ros::Time::now();
     wrench_u_e_.header.frame_id = "ur5_arm_base_link";
     wrench_u_e_.wrench.force.x = u_e_(0);
@@ -217,17 +223,32 @@ void AdmittanceController::run() {
 void AdmittanceController::compute_admittance(Vector6d &desired_twist_platform,
                                             Vector6d &desired_twist_arm,
                                             ros::Duration duration) {
-  Vector6d x_ddot_p, x_ddot_a;
+  Vector6d x_ddot_p, x_ddot_a, error;
 
-  // Translation
+  // Translation error w.r.t. desired equilibrium
+  error.topRows(3) = x_a_position_ - d_e_position_;
+
+  // Orientation error w.r.t. desired equilibriums
+  if (d_e_orientation_.coeffs().dot(x_a_orientation_.coeffs()) < 0.0) {
+    x_a_orientation_.coeffs() << -x_a_orientation_.coeffs();
+  }
+  Eigen::Quaterniond quat_rot_err(x_a_orientation_
+                                  * d_e_orientation_.inverse());
+  if (quat_rot_err.coeffs().norm() > 1e-3) {
+    // Normalize error quaternion
+    quat_rot_err.coeffs() << quat_rot_err.coeffs() /
+                             quat_rot_err.coeffs().norm();
+  }
+  Eigen::AngleAxisd err_arm_des_orient(quat_rot_err);
+  error.bottomRows(3) << err_arm_des_orient.axis() *
+                                    err_arm_des_orient.angle();
+
+  // Admittance dynamics
   x_ddot_p = M_p_.inverse()*(- D_p_ * desired_twist_platform 
                        + rotation_base_* kin_constraints_ *
-                       (D_ * x_dot_a_ + K_ * (x_a_ - d_e_)));
+                       (D_ * x_dot_a_ + K_ * error));
   x_ddot_a = M_a_.inverse()*( - (D_ + D_a_) *(desired_twist_arm)
-                                - K_ * (x_a_ - d_e_) + u_e_ + u_c_);
-
-  // TODO: Rotation
-  //Eigen::AngleAxisd quat_arm * quat_des.inverse()
+                                - K_ * error + u_e_ + u_c_);
 
   // Integrate for velocity based interface
   desired_twist_platform = desired_twist_platform + x_ddot_p * duration.toSec();
@@ -242,14 +263,11 @@ void AdmittanceController::compute_admittance(Vector6d &desired_twist_platform,
 /////////////////
 void AdmittanceController::state_platform_callback(
     const nav_msgs::OdometryConstPtr msg) {
-  x_p_ << msg->pose.pose.position.x, msg->pose.pose.position.y,
-        msg->pose.pose.position.z, 0, 0, 0;
-  tf::Quaternion q(msg->pose.pose.orientation.x,
-                  msg->pose.pose.orientation.y,
-                  msg->pose.pose.orientation.z,
-                  msg->pose.pose.orientation.w);
-  tf::Matrix3x3 m(q);
-  m.getRPY(x_p_(3), x_p_(4), x_p_(5));
+  x_p_position_ << msg->pose.pose.position.x, msg->pose.pose.position.y,
+                    msg->pose.pose.position.z;
+  x_p_orientation_.coeffs() << msg->pose.pose.orientation.x,
+      msg->pose.pose.orientation.y, msg->pose.pose.orientation.z,
+      msg->pose.pose.orientation.w;
 
   x_dot_p_ << msg->twist.twist.linear.x, msg->twist.twist.linear.y,
     msg->twist.twist.linear.z, msg->twist.twist.angular.x,
@@ -258,16 +276,11 @@ void AdmittanceController::state_platform_callback(
 
 void AdmittanceController::state_arm_callback(
     const cartesian_state_msgs::PoseTwistConstPtr msg) {
-  x_a_ << msg->pose.position.x, msg->pose.position.y,
-          msg->pose.position.z, 0, 0, 0;
-  tf::Quaternion q(msg->pose.orientation.x,
-                   msg->pose.orientation.y, msg->pose.orientation.z,
-                   msg->pose.orientation.w);
-  tf::Matrix3x3 m(q);
-  m.getRPY(x_a_(3), x_a_(4), x_a_(5));
-  x_a_(3) = wrap_angle(x_a_(3));
-  x_a_(4) = wrap_angle(x_a_(4));
-  x_a_(5) = wrap_angle(x_a_(5));
+  x_a_position_ << msg->pose.position.x, msg->pose.position.y,
+                   msg->pose.position.z;
+  x_a_orientation_.coeffs() << msg->pose.orientation.x,
+          msg->pose.orientation.y, msg->pose.orientation.z,
+          msg->pose.orientation.w;
 
   x_dot_a_ << msg->twist.linear.x, msg->twist.linear.y,
           msg->twist.linear.z, msg->twist.angular.x, msg->twist.angular.y,
@@ -471,11 +484,3 @@ bool AdmittanceController::get_rotation_matrix(Matrix6d & rotation_matrix,
   return true;
 }
 
-// Wraps angle between -pi and pi
-double AdmittanceController::wrap_angle(double angle) {
-  if (angle>0) {
-    return fmod(angle+M_PI, 2.0*M_PI)-M_PI;
-  } else {
-    return fmod(angle-M_PI, 2.0*M_PI)+M_PI;
-  }
-}

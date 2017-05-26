@@ -28,10 +28,10 @@ def publisherCallback( msg ):
         trans2_mat = tf.transformations.translation_matrix(trans2)
         rot3_mat   = tf.transformations.quaternion_matrix(rot3)
         mat1 = numpy.dot(rot3_mat, trans1_mat-trans2_mat)
-        force_at_arm_base_link = tf.transformations.translation_from_matrix(mat1)
-        fake_wrench.wrench.force.x = force_at_arm_base_link[0]
-        fake_wrench.wrench.force.y = force_at_arm_base_link[1]
-        fake_wrench.wrench.force.z = force_at_arm_base_link[2]
+        force_at_ft_link = tf.transformations.translation_from_matrix(mat1)
+        fake_wrench.wrench.force.x = force_at_ft_link[0]
+        fake_wrench.wrench.force.y = force_at_ft_link[1]
+        fake_wrench.wrench.force.z = force_at_ft_link[2]
         rot = (marker_pose.rotation.x, marker_pose.rotation.y,
                 marker_pose.rotation.z, marker_pose.rotation.w)
         euler = tf.transformations.euler_from_quaternion(rot)
