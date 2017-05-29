@@ -16,6 +16,7 @@ int main(int argc, char **argv)
   std::vector<double> M_p, M_a, D, D_p, D_a, K, d_e;
   double wrench_filter_factor, force_dead_zone_thres,
           torque_dead_zone_thres, obs_distance_thres, self_detect_thres;
+  bool dont_avoid_front;
 
   if (!nh.getParam("state_topic_arm", state_topic_arm))
   {
@@ -161,6 +162,12 @@ int main(int argc, char **argv)
     ROS_ERROR("Couldn't retrieve the desired self_detect_thres. ");
     return -1;
   }
+
+  if (!nh.getParam("dont_avoid_front", dont_avoid_front))
+  {
+    ROS_ERROR("Couldn't retrieve the dont_avoid_front flag. ");
+    return -1;
+  }
   AdmittanceController admittance_controller(nh, frequency,
                                              cmd_topic_platform,
                                              state_topic_platform,
@@ -179,7 +186,8 @@ int main(int argc, char **argv)
                                              force_dead_zone_thres,
                                              torque_dead_zone_thres,
                                              obs_distance_thres,
-                                             self_detect_thres);
+                                             self_detect_thres,
+                                             dont_avoid_front);
 
   admittance_controller.run();
 

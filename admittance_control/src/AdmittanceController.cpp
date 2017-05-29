@@ -25,12 +25,14 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
                              double force_dead_zone_thres,
                              double torque_dead_zone_thres,
                              double obs_distance_thres,
-                             double self_detect_thres) :
+                             double self_detect_thres,
+                             bool dont_avoid_front) :
                              nh_(n), loop_rate_(frequency),
                              M_p_(M_p.data()), M_a_(M_a.data()), D_(D.data()),
                              D_p_(D_p.data()), D_a_(D_a.data()), K_(K.data()),
                              obs_distance_thres_(obs_distance_thres),
                              self_detect_thres_(self_detect_thres),
+                             dont_avoid_front_(dont_avoid_front),
                              wrench_filter_factor_(wrench_filter_factor),
                              force_dead_zone_thres_(force_dead_zone_thres),
                              torque_dead_zone_thres_(torque_dead_zone_thres) {
@@ -436,7 +438,8 @@ bool AdmittanceController::isObstacleMeasurement(Vector3d &measurement) {
   return (std::abs(measurement(0)) < (0.48 + obs_distance_thres_) &&
            std::abs(measurement(1)) < (0.4 + obs_distance_thres_)) &&
          (std::abs(measurement(0)) > (0.48 + self_detect_thres_) ||
-            std::abs(measurement(1)) > (0.4 + self_detect_thres_));
+            std::abs(measurement(1)) > (0.4 + self_detect_thres_)) &&
+         (!dont_avoid_front_ || measurement(0) < 0.48);
 }
 
 

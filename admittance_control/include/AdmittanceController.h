@@ -172,6 +172,10 @@ protected:
   // Threshold starting at the end of the platform to consider an obstacle
   // to avoid self detections like cables
   double self_detect_thres_;
+  // Flag indicating if the front of the platform should be avoided too or not.
+  // For human-robot interaction settings this might be desireable if the robot
+  // is always carrying something with the robot.
+  bool dont_avoid_front_;
 
   // Point cloud from the laser scans
   laser_geometry::LaserProjection projector_;
@@ -253,7 +257,8 @@ public:
                        double force_dead_zone_thres,
                        double torque_dead_zone_thres,
                        double obs_distance_thres,
-                       double self_detect_thres);
+                       double self_detect_thres,
+                       bool dont_avoid_front);
   void run();
 };
 
