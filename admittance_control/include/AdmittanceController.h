@@ -94,8 +94,10 @@ protected:
   ros::Subscriber platform_sub_;
   // Publisher for the twist of arm endeffector
   ros::Publisher arm_pub_;
+  // Publisher for the pose of arm endeffector in the world frame
+  ros::Publisher arm_pose_pub_world_;
   // Publisher for the twist of arm endeffector in the world frame
-  ros::Publisher arm_pub_world_;
+  ros::Publisher arm_twist_pub_world_;
   // Publisher for the obstacle vector
   ros::Publisher obs_pub_;
   // Subscriber for the arm state
@@ -113,6 +115,10 @@ protected:
   ros::Subscriber laser_front_sub_;
   ros::Subscriber laser_rear_sub_;
 
+  // For publishing ee state in world frame
+  geometry_msgs::Twist twist_arm_world_frame_;
+  geometry_msgs::Pose pose_ee_world_frame_;
+
   // STATE VARIABLES:
   // x_p_position_, x_p_orientation_, x_dot_p_, x_ddot_p ->
   //                             Platform state and time derivatives
@@ -128,8 +134,7 @@ protected:
   Quaterniond x_a_orientation_, x_p_orientation_;
   Vector6d x_dot_a_;
   Vector6d x_dot_p_;
-  Vector6d u_e_, u_c_;  
-  Vector6d twist_arm_world_frame_; // for publishing
+  Vector6d u_e_, u_c_;
 
   Matrix6d rotation_base_; // Transform from base_link to
                                          // ur5_arm_base_link
@@ -218,8 +223,9 @@ protected:
   bool get_rotation_matrix(Matrix6d & rotation_matrix,
                            tf::TransformListener & listener,
                            std::string from_frame,  std::string to_frame);
-
-  void get_arm_twist_world(Vector6d & twist_arm_world_frame,
+  void get_arm_twist_world(geometry_msgs::Twist & ee_twist_world,
+                           tf::TransformListener & listener);
+  void get_ee_pose_world(geometry_msgs::Pose & ee_pose_world,
                            tf::TransformListener & listener);
 
 public:
@@ -227,6 +233,7 @@ public:
                        std::string cmd_topic_platform,
                        std::string state_topic_platform,
                        std::string cmd_topic_arm,
+                       std::string topic_arm_pose_world,
                        std::string topic_arm_twist_world,
                        std::string topic_wrench_u_e,
                        std::string topic_wrench_u_c,

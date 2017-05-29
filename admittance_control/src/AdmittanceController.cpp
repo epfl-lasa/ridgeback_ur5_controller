@@ -5,6 +5,7 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
                              std::string cmd_topic_platform,
                              std::string state_topic_platform,
                              std::string cmd_topic_arm,
+                             std::string topic_arm_pose_world,
                              std::string topic_arm_twist_world,
                              std::string topic_wrench_u_e,
                              std::string topic_wrench_u_c,
@@ -44,7 +45,9 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
                           &AdmittanceController::wrench_control_callback, this,
                           ros::TransportHints().reliable().tcpNoDelay());
   arm_pub_ = nh_.advertise<geometry_msgs::Twist>(cmd_topic_arm, 5);
-  arm_pub_world_ = nh_.advertise<geometry_msgs::Twist>(
+  arm_pose_pub_world_ = nh_.advertise<geometry_msgs::Pose>(
+                                                    topic_arm_pose_world, 5);
+  arm_twist_pub_world_ = nh_.advertise<geometry_msgs::Twist>(
                                                     topic_arm_twist_world, 5);
   arm_sub_ = nh_.subscribe(state_topic_arm, 10,
                           &AdmittanceController::state_arm_callback, this,
@@ -139,7 +142,8 @@ void AdmittanceController::run() {
   Vector6d desired_twist_platform;
   geometry_msgs::Twist platform_twist_cmd;
   geometry_msgs::Twist arm_twist_cmd;
-  geometry_msgs::Twist arm_twist_world;
+  geometry_msgs::Twist ee_twist_world;
+  geometry_msgs::Pose ee_pose_world;
   geometry_msgs::PointStamped obs_pub_msg;
 
   // Init integrator
@@ -172,16 +176,10 @@ void AdmittanceController::run() {
     arm_twist_cmd.angular.y = desired_twist_arm(4);
     arm_twist_cmd.angular.z = desired_twist_arm(5);
 
-    arm_twist_world.linear.x  = twist_arm_world_frame_(0);
-    arm_twist_world.linear.y  = twist_arm_world_frame_(1);
-    arm_twist_world.linear.z  = twist_arm_world_frame_(2);
-    arm_twist_world.angular.x = twist_arm_world_frame_(3);
-    arm_twist_world.angular.y = twist_arm_world_frame_(4);
-    arm_twist_world.angular.z = twist_arm_world_frame_(5);
-
     platform_pub_.publish(platform_twist_cmd);
     arm_pub_.publish(arm_twist_cmd);
-    arm_pub_world_.publish(arm_twist_world);
+    arm_pose_pub_world_.publish(pose_ee_world_frame_);
+    arm_twist_pub_world_.publish(twist_arm_world_frame_);
 
     // publishing visualization/debugging info
     wrench_u_e_.header.stamp = ros::Time::now();
@@ -243,6 +241,7 @@ void AdmittanceController::compute_admittance(Vector6d &desired_twist_platform,
   error.bottomRows(3) << err_arm_des_orient.axis() *
                                     err_arm_des_orient.angle();
 
+
   // Admittance dynamics
   x_ddot_p = M_p_.inverse()*(- D_p_ * desired_twist_platform 
                        + rotation_base_* kin_constraints_ *
@@ -286,8 +285,9 @@ void AdmittanceController::state_arm_callback(
           msg->twist.linear.z, msg->twist.angular.x, msg->twist.angular.y,
           msg->twist.angular.z;
 
-  // Arm twist in the world frame
+  // Arm pose/twist in the world frame
   get_arm_twist_world(twist_arm_world_frame_, listener_arm_);
+  get_ee_pose_world(pose_ee_world_frame_, listener_arm_);
 }
 
 void AdmittanceController::wrench_callback(
@@ -443,11 +443,13 @@ bool AdmittanceController::isObstacleMeasurement(Vector3d &measurement) {
 ////////////
 /// UTIL ///
 ////////////
-void AdmittanceController::get_arm_twist_world(Vector6d &twist_arm_world_frame,
-                                            tf::TransformListener & listener) {
+void AdmittanceController::get_arm_twist_world(
+                                        geometry_msgs::Twist &ee_twist_world,
+                                        tf::TransformListener & listener) {
   // publishing the cartesian velocity of the EE in the world-frame
   Matrix6d rotation_a_base_world;
   Matrix6d rotation_p_base_world;
+  Vector6d twist_arm_world_frame;
 
   twist_arm_world_frame.setZero();
 
@@ -458,6 +460,44 @@ void AdmittanceController::get_arm_twist_world(Vector6d &twist_arm_world_frame,
                                            "world", "base_link");
     twist_arm_world_frame = rotation_a_base_world * x_dot_a_
                            + rotation_p_base_world * x_dot_p_;
+  }
+  ee_twist_world.linear.x = twist_arm_world_frame(0);
+  ee_twist_world.linear.y = twist_arm_world_frame(1);
+  ee_twist_world.linear.z = twist_arm_world_frame(2);
+  ee_twist_world.angular.x = twist_arm_world_frame(3);
+  ee_twist_world.angular.y = twist_arm_world_frame(4);
+  ee_twist_world.angular.z = twist_arm_world_frame(5);
+}
+
+void AdmittanceController::get_ee_pose_world(
+                                        geometry_msgs::Pose &ee_pose_world,
+                                        tf::TransformListener & listener) {
+  // publishing the cartesian velocity of the EE in the world-frame
+  tf::StampedTransform transform;
+
+  if (arm_world_ready_ && base_world_ready_) {
+    try{
+      listener.lookupTransform("world", "robotiq_force_torque_frame_id",
+                               ros::Time(0), transform);\
+      transform.getRotation().getW();
+      ee_pose_world.position.x = transform.getOrigin().x();
+      ee_pose_world.position.y = transform.getOrigin().y();
+      ee_pose_world.position.z = transform.getOrigin().z();
+      ee_pose_world.orientation.x = transform.getRotation().x();
+      ee_pose_world.orientation.y = transform.getRotation().y();
+      ee_pose_world.orientation.z = transform.getRotation().z();
+      ee_pose_world.orientation.w = transform.getRotation().w();
+    }
+    catch (tf::TransformException ex) {
+      ee_pose_world.position.x = 0;
+      ee_pose_world.position.y = 0;
+      ee_pose_world.position.z = 0;
+      ee_pose_world.orientation.x = 0;
+      ee_pose_world.orientation.y = 0;
+      ee_pose_world.orientation.z = 0;
+      ee_pose_world.orientation.w = 1;
+      ROS_INFO("Couldn't lookup for ee to world transform...");
+    }
   }
 }
 
