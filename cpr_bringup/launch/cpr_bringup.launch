@@ -3,6 +3,7 @@
   <arg name="sim" default="true"/>
   <arg name="bringup_falcon" default="false"/>
   <arg name="world_name" default="$(find cpr_bringup)/worlds/bifurcation.world"/>
+  <arg name="rviz_conf" default="$(find cpr_bringup)/launch/rviz/admittance_fake_wrench.rviz"/>
 
   <!-- SET WORLD FRAME -->
   <node pkg="tf" type="static_transform_publisher" name="link1_broadcaster" 
@@ -16,8 +17,7 @@
 
   <!-- RVIZ -->
   <group if="$(arg sim)" >
-  <node name="rviz" pkg="rviz" type="rviz"
-    args="-d $(find cpr_bringup)/launch/rviz/admittance_fake_wrench.rviz"/>
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(arg rviz_conf)"/>
   </group>
 
   <group if="$(arg sim)">
