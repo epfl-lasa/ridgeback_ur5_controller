@@ -29,7 +29,7 @@
     <!-- FT sensor -->
     <node name="ft_sensor" pkg="robotiq_force_torque_sensor" 
       type="rq_sensor" respawn="true" output="screen" >
-      <remap from="robotiq_force_torque_wrench" to="wrench"/>
+      <remap from="/robotiq_force_torque_wrench" to="/admittance_control/wrench"/>
     </node>
 
     <!-- Bias the F/T sensor at startup -->
@@ -82,7 +82,7 @@
     <include file="$(find gazebo_ros)/launch/empty_world.launch">
       <arg name="paused" value="$(arg paused)" />
       <arg name="debug" value="0" />
-      <arg name="gui" value="true" />
+      <arg name="gui" value="false" />
       <arg name="use_sim_time" value="$(arg use_sim_time)" />
       <arg name="headless" value="$(arg headless)" />
       <arg name="world_name" value="$(arg world_name)" />

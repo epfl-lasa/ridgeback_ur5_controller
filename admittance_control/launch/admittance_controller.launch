@@ -11,22 +11,24 @@
   <arg name="TORQUE_DEAD_ZONE_THRES" default="0.0" />
 
   <!-- Other control and state topics -->
-  <arg name="TOPIC_ARM_TWIST_WORLD" default="/ur5/ur5_cartesian_velocity_controller/cart_vel_world"/>
-  <arg name="TOPIC_TWIST_U_E" default="/ur5/ur5_cartesian_velocity_controller_sim/wrench_u_e"/>
-  <arg name="TOPIC_TWIST_U_C" default="/ur5/ur5_cartesian_velocity_controller_sim/wrench_u_c"/>
+  <arg name="TOPIC_ARM_TWIST_WORLD" default="/admittance_control/ee_twist_world"/>
+  <arg name="TOPIC_ARM_POSE_WORLD" default="/admittance_control/ee_pose_world"/>
+  <arg name="TOPIC_TWIST_U_E" default="/admittance_control/u_e"/>
+  <arg name="TOPIC_TWIST_U_C" default="/admittance_control/u_c"/>
   <arg name="STATE_TOPIC_PLATFORM" default="/odometry/filtered"/>
   <arg name="CMD_TOPIC_PLATFORM" default="/cmd_vel" />
-  <arg name="WRENCH_TOPIC" default="/wrench" />
+  <arg name="WRENCH_TOPIC" default="/admittance_control/wrench" />
   <arg name="ADMITTANCE_PARAMS_FILE" default="$(find admittance_control)/config/admittance_params.yaml" />
-  <arg name="WRENCH_CONTROL_TOPIC" default="/wrench_control" />
+  <arg name="WRENCH_CONTROL_TOPIC" default="/admittance_control/wrench_control" />
   <arg name="LASER_FRONT_TOPIC" default="/front/scan" />
   <arg name="LASER_REAR_TOPIC" default="/rear/scan" />
-  <arg name="OBS_DISTANCE_THRES" default="0.4" />
+  <arg name="OBS_DISTANCE_THRES" default="0.3" />
   <arg name="SELF_DETECT_THRES" default="0.02" />
 
   <param name="state_topic_arm" value="$(arg STATE_TOPIC_ARM)"/>
   <param name="cmd_topic_arm" value="$(arg CMD_TOPIC_ARM)"/>
   <param name="topic_arm_twist_world" value="$(arg TOPIC_ARM_TWIST_WORLD)"/>
+  <param name="topic_arm_pose_world" value="$(arg TOPIC_ARM_POSE_WORLD)"/>
   <param name="topic_wrench_u_e" value="$(arg TOPIC_TWIST_U_E)"/>
   <param name="topic_wrench_u_c" value="$(arg TOPIC_TWIST_U_C)"/>
   <param name="state_topic_platform" value="$(arg STATE_TOPIC_PLATFORM)"/>

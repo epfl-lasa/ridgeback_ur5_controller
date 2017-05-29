@@ -23,7 +23,9 @@
   <group if="$(arg sim)">
     <!-- FAKE WRENCH (if there is no falcon device)-->
     <node unless="$(arg bringup_falcon)" name="fake_wrench" pkg="cpr_bringup" type="fake_wrench.py"
-      required="true" output="screen"/>
+      required="true" output="screen">
+      <remap from="wrench" to="admittance_control/wrench" />
+    </node>
 
     <!-- REAL WRENCH from falcon -->
     <include if="$(arg bringup_falcon)" file="$(find falcon_ros)/launch/falcon_as_forceInput.launch"/>
