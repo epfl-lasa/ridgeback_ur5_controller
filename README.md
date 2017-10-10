@@ -28,6 +28,8 @@ You also need the following ros packages
 $ sudo apt-get install ros-indigo-ridgeback-*
 $ sudo apt-get install ros-indigo-universal-robot
 ```
+if you are getting error for broken packages (most probably due to a wrong version of gazebo), you can use 'aptitude' instead of 'apt-get' which propose a solution and resolve the conflict. 
+
 
 Finally complie
 ```bash
