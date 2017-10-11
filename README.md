@@ -1,6 +1,13 @@
 # ridgeback_ur5_controller
 [![Build Status](https://travis-ci.com/epfl-lasa/ridgeback_ur5_controller.svg?token=m4ujgeX7fDuuc9CGktAM&branch=master)](https://travis-ci.com/epfl-lasa/ridgeback_ur5_controller)
 
+DEVEL branch: Here, we will try to extend the admittance controller.
+1) the equilibrium point for the position and velocity will be received from a topic
+2) the parameters of the admittance control will be dynamically reconfigurable.
+
+
+
+
 This package implements an admittance controller on the ridgeback+UR5 platform. It also provides a cartesian velocity controller (ros control) for the UR5 arm. 
 
 ---
