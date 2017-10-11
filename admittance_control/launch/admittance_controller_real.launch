@@ -4,28 +4,48 @@
       Launch file for the admittance controller
   -->
 
-  <arg name="STATE_TOPIC_ARM" default="/ur5/ur5_cartesian_velocity_controller/ee_state"/>
-  <arg name="CMD_TOPIC_ARM" default="/ur5/ur5_cartesian_velocity_controller/command_cart_vel"/>
+  <!-- Communication with the arm, reading the state of the arm and commanding velocities -->
+  <arg name="STATE_TOPIC_ARM" default="/ur5/ur5_cartesian_velocity_controller_sim/ee_state"/>
+  <arg name="CMD_TOPIC_ARM" default="/ur5/ur5_cartesian_velocity_controller_sim/command_cart_vel"/>
+
+  <!-- Communication with the platfrom, reading the state of the arm and commanding velocities --> 
+  <arg name="STATE_TOPIC_PLATFORM" default="/odometry/filtered"/>
+  <arg name="CMD_TOPIC_PLATFORM" default="/cmd_vel" />
+
+  <!-- Communication with the Force/Torque sensor, reading the force/torque -->
+  <!-- The wrench is specified in robotiq_force_torque_frame_id -->
+  <arg name="WRENCH_TOPIC" default="/admittance_control/wrench" />
   <arg name="WRENCH_FILTER_FACTOR" default="0.1" />
   <arg name="FORCE_DEAD_ZONE_THRES" default="6.5" />
   <arg name="TORQUE_DEAD_ZONE_THRES" default="0.5" />
 
-  <!-- Other control and state topics -->
-  <arg name="TOPIC_ARM_TWIST_WORLD" default="/admittance_control/ee_twist_world"/>
-  <arg name="TOPIC_ARM_POSE_WORLD" default="/admittance_control/ee_pose_world"/>
+  <!-- An input wrench that can be used for control -->
+  <arg name="WRENCH_CONTROL_TOPIC" default="/admittance_control/wrench_control" />
+
+  <!-- The received wrench by the FT-sensor and the controller will be published for dubugging/visualization -->
+  <!-- They will be specified in ur5_arm_base_link -->
   <arg name="TOPIC_TWIST_U_E" default="/admittance_control/u_e"/>
   <arg name="TOPIC_TWIST_U_C" default="/admittance_control/u_c"/>
-  <arg name="STATE_TOPIC_PLATFORM" default="/odometry/filtered"/>
-  <arg name="CMD_TOPIC_PLATFORM" default="/cmd_vel" />
-  <arg name="WRENCH_TOPIC" default="/admittance_control/wrench" />
+
+  <!-- The node will publish the position and the velocity of the in the world frame (Not very sure, need to be checked) -->
+  <arg name="TOPIC_ARM_TWIST_WORLD" default="/admittance_control/ee_twist_world"/>
+  <arg name="TOPIC_ARM_POSE_WORLD" default="/admittance_control/ee_pose_world"/>
+
+
+
+
+  <!-- Loading the admittance parameters from a yaml file -->
   <arg name="ADMITTANCE_PARAMS_FILE" default="$(find admittance_control)/config/admittance_params_real.yaml" />
-  <arg name="WRENCH_CONTROL_TOPIC" default="/admittance_control/wrench_control" />
+  
+  <!-- Laser scans and navigation settings -->
   <arg name="LASER_FRONT_TOPIC" default="/front/scan" />
   <arg name="LASER_REAR_TOPIC" default="/rear/scan" />
   <arg name="OBS_DISTANCE_THRES" default="0.3" />
   <arg name="SELF_DETECT_THRES" default="0.02" />
   <arg name="DONT_AVOID_FRONT" default="true" />
 
+
+  <!-- Converting args into params -->
   <param name="state_topic_arm" value="$(arg STATE_TOPIC_ARM)"/>
   <param name="cmd_topic_arm" value="$(arg CMD_TOPIC_ARM)"/>
   <param name="topic_arm_twist_world" value="$(arg TOPIC_ARM_TWIST_WORLD)"/>
