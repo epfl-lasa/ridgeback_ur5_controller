@@ -152,6 +152,9 @@ protected:
   Vector3d d_e_position_;
   Quaterniond d_e_orientation_;
 
+  //workspace limits
+  Vector6d workspace_limits_;
+
 
   // RENDERED DYNAMICS:
   // x_ddot_p = M_p_^{-1}(+D_*(x_dot_a_)
@@ -253,6 +256,7 @@ public:
                        std::vector<double> D_a,
                        std::vector<double> K,
                        std::vector<double> d_e,
+                       std::vector<double> workspace_limits,
                        double wrench_filter_factor,
                        double force_dead_zone_thres,
                        double torque_dead_zone_thres,

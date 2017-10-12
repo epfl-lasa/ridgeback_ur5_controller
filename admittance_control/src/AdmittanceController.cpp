@@ -21,6 +21,7 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
     std::vector<double> D_a,
     std::vector<double> K,
     std::vector<double> d_e,
+    std::vector<double> workspace_limits,
     double wrench_filter_factor,
     double force_dead_zone_thres,
     double torque_dead_zone_thres,
@@ -30,6 +31,7 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
   nh_(n), loop_rate_(frequency),
   M_p_(M_p.data()), M_a_(M_a.data()), D_(D.data()),
   D_p_(D_p.data()), D_a_(D_a.data()), K_(K.data()),
+  workspace_limits_(workspace_limits.data()),
   obs_distance_thres_(obs_distance_thres),
   self_detect_thres_(self_detect_thres),
   dont_avoid_front_(dont_avoid_front),
@@ -82,6 +84,12 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
   // Make sure the orientation goal is normalized
   d_e_orientation_.coeffs() << d_e_full.bottomRows(4) /
                             d_e_full.bottomRows(4).norm();
+
+  // ROS_INFO_STREAM("d_e_orientation :" << d_e_orientation_.coeffs());
+  // ROS_INFO_STREAM("w : " << d_e_orientation_.w());
+  // ROS_INFO_STREAM("vector : " << d_e_orientation_.vec());
+  // ROS_INFO_STREAM("its norm : " << d_e_orientation_.norm() );
+
 
   // Kinematic constraints between base and arm at the equilibrium
   kin_constraints_.setZero();
@@ -219,6 +227,8 @@ void AdmittanceController::run() {
     ros::spinOnce();
     loop_rate_.sleep();
   }
+
+
 }
 
 // Admittance dynamics.
@@ -234,6 +244,12 @@ void AdmittanceController::compute_admittance(Vector6d &desired_twist_platform,
   if (d_e_orientation_.coeffs().dot(x_a_orientation_.coeffs()) < 0.0) {
     x_a_orientation_.coeffs() << -x_a_orientation_.coeffs();
   }
+
+  // ROS_INFO_STREAM("desired  :" << d_e_orientation_.coeffs());
+  // ROS_INFO_STREAM("real :" << x_a_orientation_.coeffs());
+
+
+
   Eigen::Quaterniond quat_rot_err(x_a_orientation_
                                   * d_e_orientation_.inverse());
   if (quat_rot_err.coeffs().norm() > 1e-3) {
@@ -244,6 +260,13 @@ void AdmittanceController::compute_admittance(Vector6d &desired_twist_platform,
   Eigen::AngleAxisd err_arm_des_orient(quat_rot_err);
   error.bottomRows(3) << err_arm_des_orient.axis() *
                       err_arm_des_orient.angle();
+
+
+  // ROS_INFO_STREAM("quat_rot_err :" << d_e_orientation_.coeffs());
+  // ROS_INFO_STREAM("w : " << quat_rot_err.w());
+  // ROS_INFO_STREAM("vector : " << quat_rot_err.vec());
+  // ROS_INFO_STREAM("its norm : " << quat_rot_err.norm() );
+
 
 
   // Admittance dynamics
@@ -257,8 +280,34 @@ void AdmittanceController::compute_admittance(Vector6d &desired_twist_platform,
   desired_twist_platform = desired_twist_platform + x_ddot_p * duration.toSec();
   desired_twist_arm = desired_twist_arm + x_ddot_a * duration.toSec();
 
-  std::cout << "Desired twist arm: " << desired_twist_arm << std::endl;
-  std::cout << "Desired twist platform: " << desired_twist_platform << std::endl;
+  // std::cout << "Desired twist arm: " << desired_twist_arm << std::endl;
+  // std::cout << "Desired twist platform: " << desired_twist_platform << std::endl;
+
+  if (desired_twist_arm(0) < 0 && x_a_position_(0) < workspace_limits_(0)) {
+    desired_twist_arm(0) = 0;
+  }
+
+  if (desired_twist_arm(0) > 0 && x_a_position_(0) > workspace_limits_(1)) {
+    desired_twist_arm(0) = 0;
+  }
+
+  if (desired_twist_arm(1) < 0 && x_a_position_(1) < workspace_limits_(2)) {
+    desired_twist_arm(1) = 0;
+  }
+
+  if (desired_twist_arm(1) > 0 && x_a_position_(1) > workspace_limits_(3)) {
+    desired_twist_arm(1) = 0;
+  }
+
+  if (desired_twist_arm(2) < 0 && x_a_position_(2) < workspace_limits_(4)) {
+    desired_twist_arm(2) = 0;
+  }
+
+  if (desired_twist_arm(2) > 0 && x_a_position_(2) > workspace_limits_(5)) {
+    desired_twist_arm(2) = 0;
+  }
+
+
 }
 
 /////////////////
@@ -281,9 +330,35 @@ void AdmittanceController::state_arm_callback(
   const cartesian_state_msgs::PoseTwistConstPtr msg) {
   x_a_position_ << msg->pose.position.x, msg->pose.position.y,
                 msg->pose.position.z;
+
+
+  if (x_a_position_(0) < workspace_limits_(0) || x_a_position_(0) > workspace_limits_(1)) {
+    ROS_WARN_STREAM_THROTTLE (1, "Out of permitted workspace.  x = "
+                              << x_a_position_(0) << " not in [" << workspace_limits_(0) << " , " << workspace_limits_(1) << "]");
+  }
+
+  if (x_a_position_(1) < workspace_limits_(2) || x_a_position_(1) > workspace_limits_(3)) {
+    ROS_WARN_STREAM_THROTTLE (1, "Out of permitted workspace.  y = "
+                              << x_a_position_(1) << " not in [" << workspace_limits_(2) << " , " << workspace_limits_(3) << "]");
+  }
+
+  if (x_a_position_(2) < workspace_limits_(4) || x_a_position_(2) > workspace_limits_(5)) {
+    ROS_WARN_STREAM_THROTTLE (1, "Out of permitted workspace  z = "
+                              << x_a_position_(2) << " not in [" << workspace_limits_(4) << " , " << workspace_limits_(5) << "]");
+  }
+
+
+
   x_a_orientation_.coeffs() << msg->pose.orientation.x,
-                          msg->pose.orientation.y, msg->pose.orientation.z,
+                          msg->pose.orientation.y,
+                          msg->pose.orientation.z,
                           msg->pose.orientation.w;
+
+  // ROS_INFO_STREAM("Orientation of the arm (x-y-z-w) : " <<
+  //                 msg->pose.orientation.x << " " <<
+  //                 msg->pose.orientation.y << " " <<
+  //                 msg->pose.orientation.z << " " <<
+  //                 msg->pose.orientation.w  );
 
   x_dot_a_ << msg->twist.linear.x, msg->twist.linear.y,
            msg->twist.linear.z, msg->twist.angular.x, msg->twist.angular.y,
@@ -293,7 +368,7 @@ void AdmittanceController::state_arm_callback(
   get_arm_twist_world(twist_arm_world_frame_, listener_arm_);
   get_ee_pose_world(pose_ee_world_frame_, listener_arm_);
 
-  std::cout << "current pose of arm: " << pose_ee_world_frame_ << std::endl;
+  // std::cout << "current pose of arm: " << pose_ee_world_frame_ << std::endl;
 
 }
 
@@ -471,7 +546,7 @@ void AdmittanceController::get_arm_twist_world(
     get_rotation_matrix(rotation_p_base_world, listener,
                         "world", "base_link");
     // twist_arm_world_frame = rotation_a_base_world * x_dot_a_
-                            // + rotation_p_base_world * x_dot_p_;
+    // + rotation_p_base_world * x_dot_p_;
     twist_arm_world_frame = x_dot_a_ + x_dot_p_;
   }
   ee_twist_world.linear.x = twist_arm_world_frame(0);
@@ -537,4 +612,5 @@ bool AdmittanceController::get_rotation_matrix(Matrix6d & rotation_matrix,
 
   return true;
 }
+
 

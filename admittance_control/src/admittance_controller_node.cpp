@@ -13,7 +13,7 @@ int main(int argc, char **argv)
     topic_arm_twist_world, topic_wrench_u_e, topic_wrench_u_c,
     cmd_topic_platform, state_topic_platform, wrench_topic,
     wrench_control_topic, laser_front_topic, laser_rear_topic;
-  std::vector<double> M_p, M_a, D, D_p, D_a, K, d_e;
+  std::vector<double> M_p, M_a, D, D_p, D_a, K, d_e, workspace_limits;
   double wrench_filter_factor, force_dead_zone_thres,
           torque_dead_zone_thres, obs_distance_thres, self_detect_thres;
   bool dont_avoid_front;
@@ -133,6 +133,13 @@ int main(int argc, char **argv)
     return -1;
   }
 
+  if (!nh.getParam("workspace_limits", workspace_limits))
+  {
+    ROS_ERROR("Couldn't retrieve the desired equilibrium of the spring.");
+    return -1;
+  }
+
+
   if (!nh.getParam("wrench_filter_factor", wrench_filter_factor))
   {
     ROS_ERROR("Couldn't retrieve the desired wrench filter factor.");
@@ -181,7 +188,8 @@ int main(int argc, char **argv)
                                              wrench_control_topic,
                                              laser_front_topic,
                                              laser_rear_topic,
-                                             M_p, M_a, D, D_p, D_a, K, d_e, 
+                                             M_p, M_a, D, D_p, D_a, K, d_e,
+                                             workspace_limits, 
                                              wrench_filter_factor,
                                              force_dead_zone_thres,
                                              torque_dead_zone_thres,

@@ -39,7 +39,7 @@ stiffness_coupling: [10,0,0,0,0,0,
                      0,0,0,5,0,0,
                      0,0,0,0,5,0,
                      0,0,0,0,0,5]
-equilibrium_point_spring: [0.0478,0.3477,0.5611,0.7527, 0.6979, 0.01073, -0.033988]
+#equilibrium_point_spring: [0.0478,0.3477,0.5611,0.7527, 0.6979, 0.01073, -0.033988]
 
 
 
@@ -62,3 +62,12 @@ equilibrium_point_spring: [0.111,0.494,0.587,      0.707, 0.004, 0.707, 0.010]
 #     y: 0.00495619074876
 #     z: 0.707969920618
 #     w: 0.0109806972969
+
+# not that position is defined in "ur5_arm_base_link"
+# with x pointing right
+#      y pointing forward
+#      z pointing up
+
+
+# this will limit the workspace ([x_min x_max y_min y_max z_min z_max])
+workspace_limits: [-0.30, 0.30, 0.35, 0.55, 0.20, 0.75]
