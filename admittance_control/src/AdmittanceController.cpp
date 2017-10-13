@@ -38,6 +38,35 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
   wrench_filter_factor_(wrench_filter_factor),
   force_dead_zone_thres_(force_dead_zone_thres),
   torque_dead_zone_thres_(torque_dead_zone_thres) {
+
+  // initializing the class variables
+  u_e_.setZero();
+  u_c_.setZero();
+
+  Vector7d d_e_full(d_e.data());
+  d_e_position_ << d_e_full.topRows(3);
+  // Make sure the orientation goal is normalized
+  d_e_orientation_.coeffs() << d_e_full.bottomRows(4) /
+                            d_e_full.bottomRows(4).norm();
+
+  // setting the robot state to zero and wait for data
+  x_a_position_.setZero();
+  x_p_position_.setZero();
+
+  // starting from a state that does not create movement on the robot
+  x_a_orientation_ = d_e_orientation_;
+
+
+
+
+  // ROS_INFO_STREAM("d_e_orientation :" << d_e_orientation_.coeffs());
+  // ROS_INFO_STREAM("w : " << d_e_orientation_.w());
+  // ROS_INFO_STREAM("vector : " << d_e_orientation_.vec());
+  // ROS_INFO_STREAM("its norm : " << d_e_orientation_.norm() );
+
+
+
+
   platform_pub_ = nh_.advertise<geometry_msgs::Twist>(cmd_topic_platform, 5);
   platform_sub_ = nh_.subscribe(state_topic_platform, 5,
                                 &AdmittanceController::state_platform_callback, this,
@@ -69,26 +98,15 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
 
   obs_pub_ = nh_.advertise<geometry_msgs::PointStamped>("obstacles", 5);
 
-  ft_arm_ready_ = false;
-  arm_world_ready_ = false;
-  base_world_ready_ = false;
-  world_arm_ready_ = false;
 
-  init_TF();
+  while (nh_.ok() && !x_a_position_(0)) {
+    ROS_WARN_THROTTLE(1, "Waiting for the state of the arm...");
+    ros::spinOnce();
+    loop_rate_.sleep();
+  }
+  ROS_INFO("Started to receive the state of the arm.");
 
-  u_e_.setZero();
-  u_c_.setZero();
 
-  Vector7d d_e_full(d_e.data());
-  d_e_position_ << d_e_full.topRows(3);
-  // Make sure the orientation goal is normalized
-  d_e_orientation_.coeffs() << d_e_full.bottomRows(4) /
-                            d_e_full.bottomRows(4).norm();
-
-  // ROS_INFO_STREAM("d_e_orientation :" << d_e_orientation_.coeffs());
-  // ROS_INFO_STREAM("w : " << d_e_orientation_.w());
-  // ROS_INFO_STREAM("vector : " << d_e_orientation_.vec());
-  // ROS_INFO_STREAM("its norm : " << d_e_orientation_.norm() );
 
 
   // Kinematic constraints between base and arm at the equilibrium
@@ -103,6 +121,16 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
   obs_vector_.setZero();
   laser_front_cloud_.points.resize(0);
   laser_rear_cloud_.points.resize(0);
+
+
+  ft_arm_ready_ = false;
+  arm_world_ready_ = false;
+  base_world_ready_ = false;
+  world_arm_ready_ = false;
+
+  init_TF();
+
+
 }
 
 //////////////////////
@@ -150,76 +178,37 @@ void AdmittanceController::init_TF() {
 ////////////////////
 void AdmittanceController::run() {
   // Desired twists
-  Vector6d desired_twist_arm;
-  Vector6d desired_twist_platform;
-  geometry_msgs::Twist platform_twist_cmd;
-  geometry_msgs::Twist arm_twist_cmd;
+
   geometry_msgs::Twist ee_twist_world;
   geometry_msgs::Pose ee_pose_world;
-  geometry_msgs::PointStamped obs_pub_msg;
 
   // Init integrator
-  desired_twist_arm.setZero();
-  desired_twist_platform.setZero();
+  arm_desired_twist_.setZero();
+  platform_desired_twist_.setZero();
 
-  geometry_msgs::WrenchStamped wrench_u_e_;
-  geometry_msgs::WrenchStamped wrench_u_c_;
 
   while (nh_.ok()) {
-    // Dynamics computation
-    compute_admittance(desired_twist_platform, desired_twist_arm,
-                       loop_rate_.expectedCycleTime());
+    // Admittance Dynamics computation
+    // compute_admittance(desired_twist_platform, desired_twist_arm,
+    //                    loop_rate_.expectedCycleTime());
+    compute_admittance();
+
+    // limit the the movement of the arm to the permitted workspace
+    limit_to_workspace();
 
     // Obstacle avoidance for the platform
-    avoid_obstacles(desired_twist_platform);
+    // avoid_obstacles(platform_desired_twist_);
+
+
 
     // Copy commands to messages
-    platform_twist_cmd.linear.x  = desired_twist_platform(0);
-    platform_twist_cmd.linear.y  = desired_twist_platform(1);
-    platform_twist_cmd.linear.z  = desired_twist_platform(2);
-    platform_twist_cmd.angular.x = desired_twist_platform(3);
-    platform_twist_cmd.angular.y = desired_twist_platform(4);
-    platform_twist_cmd.angular.z = desired_twist_platform(5);
+    send_commands_to_robot();
 
-    arm_twist_cmd.linear.x  = desired_twist_arm(0);
-    arm_twist_cmd.linear.y  = desired_twist_arm(1);
-    arm_twist_cmd.linear.z  = desired_twist_arm(2);
-    arm_twist_cmd.angular.x = desired_twist_arm(3);
-    arm_twist_cmd.angular.y = desired_twist_arm(4);
-    arm_twist_cmd.angular.z = desired_twist_arm(5);
-
-    platform_pub_.publish(platform_twist_cmd);
-    arm_pub_.publish(arm_twist_cmd);
     arm_pose_pub_world_.publish(pose_ee_world_frame_);
     arm_twist_pub_world_.publish(twist_arm_world_frame_);
 
     // publishing visualization/debugging info
-    wrench_u_e_.header.stamp    = ros::Time::now();
-    wrench_u_e_.header.frame_id = "ur5_arm_base_link";
-    wrench_u_e_.wrench.force.x  = u_e_(0);
-    wrench_u_e_.wrench.force.y  = u_e_(1);
-    wrench_u_e_.wrench.force.z  = u_e_(2);
-    wrench_u_e_.wrench.torque.x = u_e_(3);
-    wrench_u_e_.wrench.torque.y = u_e_(4);
-    wrench_u_e_.wrench.torque.z = u_e_(5);
-    wrench_pub_u_e_.publish(wrench_u_e_);
-
-    wrench_u_c_.header.stamp    = ros::Time::now();
-    wrench_u_c_.header.frame_id = "ur5_arm_base_link";
-    wrench_u_c_.wrench.force.x  = u_c_(0);
-    wrench_u_c_.wrench.force.y  = u_c_(1);
-    wrench_u_c_.wrench.force.z  = u_c_(2);
-    wrench_u_c_.wrench.torque.x = u_c_(3);
-    wrench_u_c_.wrench.torque.y = u_c_(4);
-    wrench_u_c_.wrench.torque.z = u_c_(5);
-    wrench_pub_u_c_.publish(wrench_u_c_);
-
-    obs_pub_msg.header.stamp = ros::Time::now();
-    obs_pub_msg.header.frame_id = "base_link";
-    obs_pub_msg.point.x = obs_vector_(0);
-    obs_pub_msg.point.y = obs_vector_(1);
-    obs_pub_msg.point.z = obs_vector_(2);
-    obs_pub_.publish(obs_pub_msg);
+    publish_debuggings_signals();
 
     // For obstacle avoidance
     update_obstacles();
@@ -232,10 +221,16 @@ void AdmittanceController::run() {
 }
 
 // Admittance dynamics.
-void AdmittanceController::compute_admittance(Vector6d &desired_twist_platform,
-    Vector6d &desired_twist_arm,
-    ros::Duration duration) {
-  Vector6d x_ddot_p, x_ddot_a, error;
+// void AdmittanceController::compute_admittance(Vector6d &desired_twist_platform,
+//     Vector6d &desired_twist_arm,
+//     ros::Duration duration)
+
+void AdmittanceController::compute_admittance() {
+
+  Vector6d platform_desired_acceleration;
+  Vector6d arm_desired_accelaration;
+
+  Vector6d error;
 
   // Translation error w.r.t. desired equilibrium
   error.topRows(3) = x_a_position_ - d_e_position_;
@@ -269,44 +264,41 @@ void AdmittanceController::compute_admittance(Vector6d &desired_twist_platform,
 
 
 
+  Vector6d coupling_wrench =  D_ * (arm_desired_twist_) + K_ * error;
+
+  platform_desired_acceleration = M_p_.inverse() * (- D_p_ * platform_desired_twist_
+                                  + rotation_base_ * kin_constraints_ * coupling_wrench);
+  arm_desired_accelaration = M_a_.inverse() * ( - coupling_wrench - D_a_ * arm_desired_twist_ + u_e_ + u_c_);
+
+
+
+  // limiting the accelaration for better stability and safety
+  double p_acc_norm = (platform_desired_acceleration.segment(0, 3)).norm();
+  double a_acc_norm = (arm_desired_accelaration.segment(0, 3)).norm();
+
+  if (p_acc_norm > 2.0) {
+    ROS_WARN_STREAM_THROTTLE(1, "Admittance generates high platform accelaration! accleration norm: " << p_acc_norm);
+    platform_desired_acceleration.segment(0, 3) *= (2.0 / p_acc_norm);
+  }
+
+  if (a_acc_norm > 5.0) {
+    ROS_WARN_STREAM_THROTTLE(1, "Admittance generates high arm accelaration! accleration norm: " << a_acc_norm);
+    arm_desired_accelaration.segment(0, 3) *= (5.0 / a_acc_norm);
+  }
+
+
   // Admittance dynamics
-  x_ddot_p = M_p_.inverse() * (- D_p_ * desired_twist_platform
-                               + rotation_base_ * kin_constraints_ *
-                               (D_ * x_dot_a_ + K_ * error));
-  x_ddot_a = M_a_.inverse() * ( - (D_ + D_a_) * (desired_twist_arm)
-                                - K_ * error + u_e_ + u_c_);
+  // x_ddot_p = M_p_.inverse() * (- D_p_ * platform_desired_twist_
+  //                              + rotation_base_ * kin_constraints_ *
+  //                              (D_ * (arm_desired_twist_) + K_ * error));
+  // x_ddot_a = M_a_.inverse() * ( - (D_ + D_a_) * (arm_desired_twist_)
+  //                               - K_ * error + u_e_ + u_c_);
 
   // Integrate for velocity based interface
-  desired_twist_platform = desired_twist_platform + x_ddot_p * duration.toSec();
-  desired_twist_arm = desired_twist_arm + x_ddot_a * duration.toSec();
+  ros::Duration duration = loop_rate_.expectedCycleTime();
 
-  // std::cout << "Desired twist arm: " << desired_twist_arm << std::endl;
-  // std::cout << "Desired twist platform: " << desired_twist_platform << std::endl;
-
-  if (desired_twist_arm(0) < 0 && x_a_position_(0) < workspace_limits_(0)) {
-    desired_twist_arm(0) = 0;
-  }
-
-  if (desired_twist_arm(0) > 0 && x_a_position_(0) > workspace_limits_(1)) {
-    desired_twist_arm(0) = 0;
-  }
-
-  if (desired_twist_arm(1) < 0 && x_a_position_(1) < workspace_limits_(2)) {
-    desired_twist_arm(1) = 0;
-  }
-
-  if (desired_twist_arm(1) > 0 && x_a_position_(1) > workspace_limits_(3)) {
-    desired_twist_arm(1) = 0;
-  }
-
-  if (desired_twist_arm(2) < 0 && x_a_position_(2) < workspace_limits_(4)) {
-    desired_twist_arm(2) = 0;
-  }
-
-  if (desired_twist_arm(2) > 0 && x_a_position_(2) > workspace_limits_(5)) {
-    desired_twist_arm(2) = 0;
-  }
-
+  platform_desired_twist_ += platform_desired_acceleration * duration.toSec();
+  arm_desired_twist_      += arm_desired_accelaration      * duration.toSec();
 
 }
 
@@ -332,20 +324,6 @@ void AdmittanceController::state_arm_callback(
                 msg->pose.position.z;
 
 
-  if (x_a_position_(0) < workspace_limits_(0) || x_a_position_(0) > workspace_limits_(1)) {
-    ROS_WARN_STREAM_THROTTLE (1, "Out of permitted workspace.  x = "
-                              << x_a_position_(0) << " not in [" << workspace_limits_(0) << " , " << workspace_limits_(1) << "]");
-  }
-
-  if (x_a_position_(1) < workspace_limits_(2) || x_a_position_(1) > workspace_limits_(3)) {
-    ROS_WARN_STREAM_THROTTLE (1, "Out of permitted workspace.  y = "
-                              << x_a_position_(1) << " not in [" << workspace_limits_(2) << " , " << workspace_limits_(3) << "]");
-  }
-
-  if (x_a_position_(2) < workspace_limits_(4) || x_a_position_(2) > workspace_limits_(5)) {
-    ROS_WARN_STREAM_THROTTLE (1, "Out of permitted workspace  z = "
-                              << x_a_position_(2) << " not in [" << workspace_limits_(4) << " , " << workspace_limits_(5) << "]");
-  }
 
 
 
@@ -613,4 +591,121 @@ bool AdmittanceController::get_rotation_matrix(Matrix6d & rotation_matrix,
   return true;
 }
 
+void AdmittanceController::publish_debuggings_signals() {
 
+  geometry_msgs::WrenchStamped wrench_u_e_;
+  geometry_msgs::WrenchStamped wrench_u_c_;
+  geometry_msgs::PointStamped obs_pub_msg;
+
+  wrench_u_e_.header.stamp    = ros::Time::now();
+  wrench_u_e_.header.frame_id = "ur5_arm_base_link";
+  wrench_u_e_.wrench.force.x  = u_e_(0);
+  wrench_u_e_.wrench.force.y  = u_e_(1);
+  wrench_u_e_.wrench.force.z  = u_e_(2);
+  wrench_u_e_.wrench.torque.x = u_e_(3);
+  wrench_u_e_.wrench.torque.y = u_e_(4);
+  wrench_u_e_.wrench.torque.z = u_e_(5);
+  wrench_pub_u_e_.publish(wrench_u_e_);
+
+  wrench_u_c_.header.stamp    = ros::Time::now();
+  wrench_u_c_.header.frame_id = "ur5_arm_base_link";
+  wrench_u_c_.wrench.force.x  = u_c_(0);
+  wrench_u_c_.wrench.force.y  = u_c_(1);
+  wrench_u_c_.wrench.force.z  = u_c_(2);
+  wrench_u_c_.wrench.torque.x = u_c_(3);
+  wrench_u_c_.wrench.torque.y = u_c_(4);
+  wrench_u_c_.wrench.torque.z = u_c_(5);
+  wrench_pub_u_c_.publish(wrench_u_c_);
+
+  obs_pub_msg.header.stamp = ros::Time::now();
+  obs_pub_msg.header.frame_id = "base_link";
+  obs_pub_msg.point.x = obs_vector_(0);
+  obs_pub_msg.point.y = obs_vector_(1);
+  obs_pub_msg.point.z = obs_vector_(2);
+  obs_pub_.publish(obs_pub_msg);
+
+}
+
+
+void AdmittanceController::send_commands_to_robot() {
+
+  geometry_msgs::Twist platform_twist_cmd;
+  geometry_msgs::Twist arm_twist_cmd;
+
+  platform_twist_cmd.linear.x  = platform_desired_twist_(0);
+  platform_twist_cmd.linear.y  = platform_desired_twist_(1);
+  platform_twist_cmd.linear.z  = platform_desired_twist_(2);
+  platform_twist_cmd.angular.x = platform_desired_twist_(3);
+  platform_twist_cmd.angular.y = platform_desired_twist_(4);
+  platform_twist_cmd.angular.z = platform_desired_twist_(5);
+
+  arm_twist_cmd.linear.x  = arm_desired_twist_(0);
+  arm_twist_cmd.linear.y  = arm_desired_twist_(1);
+  arm_twist_cmd.linear.z  = arm_desired_twist_(2);
+  arm_twist_cmd.angular.x = arm_desired_twist_(3);
+  arm_twist_cmd.angular.y = arm_desired_twist_(4);
+  arm_twist_cmd.angular.z = arm_desired_twist_(5);
+
+  platform_pub_.publish(platform_twist_cmd);
+  arm_pub_.publish(arm_twist_cmd);
+}
+
+
+void AdmittanceController::limit_to_workspace() {
+
+
+  if (x_a_position_(0) < workspace_limits_(0) || x_a_position_(0) > workspace_limits_(1)) {
+    ROS_WARN_STREAM_THROTTLE (1, "Out of permitted workspace.  x = "
+                              << x_a_position_(0) << " not in [" << workspace_limits_(0) << " , "
+                              << workspace_limits_(1) << "]");
+  }
+
+  if (x_a_position_(1) < workspace_limits_(2) || x_a_position_(1) > workspace_limits_(3)) {
+    ROS_WARN_STREAM_THROTTLE (1, "Out of permitted workspace.  y = "
+                              << x_a_position_(1) << " not in [" << workspace_limits_(2) << " , "
+                              << workspace_limits_(3) << "]");
+  }
+
+  if (x_a_position_(2) < workspace_limits_(4) || x_a_position_(2) > workspace_limits_(5)) {
+    ROS_WARN_STREAM_THROTTLE (1, "Out of permitted workspace.  z = "
+                              << x_a_position_(2) << " not in [" << workspace_limits_(4) << " , "
+                              << workspace_limits_(5) << "]");
+  }
+
+
+  if (arm_desired_twist_(0) < 0 && x_a_position_(0) < workspace_limits_(0)) {
+    arm_desired_twist_(0) = 0;
+  }
+
+  if (arm_desired_twist_(0) > 0 && x_a_position_(0) > workspace_limits_(1)) {
+    arm_desired_twist_(0) = 0;
+  }
+
+  if (arm_desired_twist_(1) < 0 && x_a_position_(1) < workspace_limits_(2)) {
+    arm_desired_twist_(1) = 0;
+  }
+
+  if (arm_desired_twist_(1) > 0 && x_a_position_(1) > workspace_limits_(3)) {
+    arm_desired_twist_(1) = 0;
+  }
+
+  if (arm_desired_twist_(2) < 0 && x_a_position_(2) < workspace_limits_(4)) {
+    arm_desired_twist_(2) = 0;
+  }
+
+  if (arm_desired_twist_(2) > 0 && x_a_position_(2) > workspace_limits_(5)) {
+    arm_desired_twist_(2) = 0;
+  }
+
+  double norm_vel_des = (arm_desired_twist_.segment(0, 3)).norm();
+
+  if (norm_vel_des > 1.0) {
+    ROS_WARN_STREAM_THROTTLE(1, "Admittance generate fast movements! velocity norm: " << norm_vel_des);
+
+    arm_desired_twist_.segment(0, 3) *= (1.0 / norm_vel_des);
+
+  }
+
+
+
+}

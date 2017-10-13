@@ -27,12 +27,12 @@
 //
 // Communication interfaces:
 // - The desired twists are both sent through ROS topics.
-// The low level controllers of both the arm and the platform are 
+// The low level controllers of both the arm and the platform are
 // implemented in ROS control.
 // NOTE: This node should be ideally a ROS
-// controller, but the current implementation of ROS control in 
-// indigo requires writing a specific interface for this matter. 
-// The kinetic version of ROS control enables controllers with 
+// controller, but the current implementation of ROS control in
+// indigo requires writing a specific interface for this matter.
+// The kinetic version of ROS control enables controllers with
 // multiple interfaces (FT sensor, platform and arm), but a proper
 // ROS control implementation of this controller remains future work.
 //
@@ -74,9 +74,9 @@
 
 using namespace Eigen;
 
-typedef Matrix<double,7,1> Vector7d;
-typedef Matrix<double,6,1> Vector6d;
-typedef Matrix<double,6,6> Matrix6d;
+typedef Matrix<double, 7, 1> Vector7d;
+typedef Matrix<double, 6, 1> Vector6d;
+typedef Matrix<double, 6, 6> Matrix6d;
 
 class AdmittanceController
 {
@@ -115,9 +115,19 @@ protected:
   ros::Subscriber laser_front_sub_;
   ros::Subscriber laser_rear_sub_;
 
+  // the desired velcoities computed by the admittance control
+  // Vector6d desired_twist_arm_;
+  // Vector6d desired_twist_platform_;
+  // renaming
+  Vector6d arm_desired_twist_;
+  Vector6d platform_desired_twist_;
+
   // For publishing ee state in world frame
   geometry_msgs::Twist twist_arm_world_frame_;
   geometry_msgs::Pose pose_ee_world_frame_;
+
+
+
 
   // STATE VARIABLES:
   // x_p_position_, x_p_orientation_, x_dot_p_, x_ddot_p ->
@@ -137,9 +147,9 @@ protected:
   Vector6d u_e_, u_c_;
 
   Matrix6d rotation_base_; // Transform from base_link to
-                                         // ur5_arm_base_link
+  // ur5_arm_base_link
   Matrix6d kin_constraints_; // Derivative of kinematic constraints
-                             // between the arm and the platform
+  // between the arm and the platform
 
   // ADMITTANCE PARAMETERS:
   // M_p_, M_a_ -> Desired mass of platform/arm
@@ -209,8 +219,10 @@ protected:
   void init_TF();
 
   // Control
-  void compute_admittance(Vector6d & desired_twist_platform,
-                     Vector6d & desired_vel_arm, ros::Duration cycle_time);
+  // void compute_admittance(Vector6d & desired_twist_platform,
+  //                    Vector6d & desired_vel_arm, ros::Duration cycle_time);
+  void compute_admittance();
+
   void avoid_obstacles(Vector6d &desired_twist_platform);
 
   // Obstacle avoidance
@@ -233,7 +245,13 @@ protected:
   void get_arm_twist_world(geometry_msgs::Twist & ee_twist_world,
                            tf::TransformListener & listener);
   void get_ee_pose_world(geometry_msgs::Pose & ee_pose_world,
-                           tf::TransformListener & listener);
+                         tf::TransformListener & listener);
+
+  void limit_to_workspace();
+
+  void publish_debuggings_signals();
+
+  void send_commands_to_robot();
 
 public:
   AdmittanceController(ros::NodeHandle &n, double frequency,
