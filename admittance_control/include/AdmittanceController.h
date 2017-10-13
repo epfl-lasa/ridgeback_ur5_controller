@@ -87,99 +87,98 @@ protected:
   // Rate of the run loop
   ros::Rate loop_rate_;
 
-  // Publishers and subscribers:
-  // Publisher for the twist of the platform
-  ros::Publisher platform_pub_;
+
+  // Subscribers:
+
   // Subscriber for the platform state
-  ros::Subscriber platform_sub_;
+  ros::Subscriber sub_platform_state_;
+  // Subscriber for the arm state
+  ros::Subscriber sub_arm_state_;
+  // Subscriber for the ft sensor at the endeffector
+  ros::Subscriber sub_wrench_external_;
+  // Subscriber for the ft sensor at the endeffector
+  ros::Subscriber sub_wrench_control_;
+  // Subscriber for the front laser
+  ros::Subscriber sub_laser_front_;
+  // Subscriber for the rear laser
+  ros::Subscriber sub_laser_rear_;
+
+
+  // Publishers:
+
+  // Publisher for the twist of the platform
+  ros::Publisher pub_platform_cmd_;
   // Publisher for the twist of arm endeffector
-  ros::Publisher arm_pub_;
+  ros::Publisher pub_arm_cmd_;
   // Publisher for the pose of arm endeffector in the world frame
   ros::Publisher pub_ee_pose_world_;
   // Publisher for the twist of arm endeffector in the world frame
   ros::Publisher pub_ee_twist_world_;
+  // Publisher for the external wrench specified in the world frame
+  ros::Publisher pub_wrench_external_;
+  // Publisher for the control wrench specified in the world frame
+  ros::Publisher pub_wrench_control_;
   // Publisher for the obstacle vector
-  ros::Publisher obs_pub_;
-  // Subscriber for the arm state
-  ros::Subscriber arm_sub_;
-  // Subscriber for the ft sensor at the endeffector
-  ros::Subscriber wrench_sub_;
-  // Subscriber for the ft sensor at the endeffector
-  ros::Subscriber wrench_control_sub_;
-
-  // Subscriber for the admittance control forces in the ur5_arm_base_link, for rviz
-  ros::Publisher wrench_pub_u_e_;
-  ros::Publisher wrench_pub_u_c_;
-
-  // Subscribers for the lasers
-  ros::Subscriber laser_front_sub_;
-  ros::Subscriber laser_rear_sub_;
-
-  // the desired velcoities computed by the admittance control
-  // Vector6d desired_twist_arm_;
-  // Vector6d desired_twist_platform_;
-  // renaming
-  Vector6d arm_desired_twist_;
-  Vector6d platform_desired_twist_;
-
-  // For publishing ee state in world frame
-  // geometry_msgs::Twist twist_arm_world_frame_;
-  // geometry_msgs::Pose pose_ee_world_frame_;
+  ros::Publisher pub_obstacle_position_;
 
 
-
-
-  // STATE VARIABLES:
-  // x_p_position_, x_p_orientation_, x_dot_p_, x_ddot_p ->
-  //                             Platform state and time derivatives
-  //                             (in platform base_link)
-  // x_a_position_, x_a_orientation_, x_dot_a_, x_ddot_a ->
-  //                             Arm state and time derivatives
-  //                             (in ur5_arm_base_link frame)
-  // u_e_ -> external wrench (force/torque sensor)
-  //         (in ur5_arm_base_link frame)
-  // u_c_ -> control wrench (from yout goal-oriented controller)
-  //         (in ur5_arm_base_link frame)
-  Vector3d arm_real_position_, platform_real_position_;
-  Quaterniond arm_real_orientation_, platform_real_orientation_;
-  Vector6d arm_real_twist_;
-  Vector6d platform_real_twist_;
-
-  // ee in world frame (here end-effector is the same as the arm)
-  Vector7d ee_pose_world_;
-  Vector6d ee_twist_world_;
-
-
+  // INPUT SIGNAL
+  // external wrench (force/torque sensor) in "robotiq_force_torque_frame_id" frame
   Vector6d wrench_external_;
+  // control wrench (from any controller) expected to be in "ur5_arm_base_link" frame
   Vector6d wrench_control_;
 
-  Matrix6d rotation_base_; // Transform from base_link to
-  // ur5_arm_base_link
-  Matrix6d kin_constraints_; // Derivative of kinematic constraints
-  // between the arm and the platform
+
+  // FORCE/TORQUE-SENSOR FILTER:
+  // Parameters for the noisy wrench
+  double wrench_filter_factor_;
+  double force_dead_zone_thres_;
+  double torque_dead_zone_thres_;
+
 
   // ADMITTANCE PARAMETERS:
   // M_p_, M_a_ -> Desired mass of platform/arm
   // D_ -> Desired damping of the coupling
-  // K_ -> Desired Stiffness of the coupling
   // D_p_, D_a_ -> Desired damping of platform/arm
-  // d_e_position_ -> equilibrium position of the coupling spring
-  // d_e_orientation -> equilibrium orientation of the coupling spring
+  // K_ -> Desired Stiffness of the coupling
   Matrix6d M_p_, M_a_, D_, D_p_, D_a_, K_;
-
-
+  // equilibrium position of the coupling spring
   Vector3d equilibrium_position_;
+  // equilibrium orientation of the coupling spring
   Quaterniond equilibrium_orientation_;
 
-  //workspace limits
+
+  // OUTPUT COMMANDS
+  // the desired velcoities computed by the admittance control
+  Vector6d arm_desired_twist_;
+  Vector6d platform_desired_twist_;
+
+  // limiting the workspace of the arm
   Vector6d workspace_limits_;
 
 
-  // RENDERED DYNAMICS:
-  // x_ddot_p = M_p_^{-1}(+D_*(x_dot_a_)
-  //              - D_p_ x_dot_p_ + K_(error))
-  // x_ddot_a = M_a_^{-1}(-D_*(x_dot_a_)
-  //              - D_a_ x_dot_a_ - K_(error)) + u_e_
+  // STATE VARIABLES:
+  // Platform state: position, orientation, and twist (in "platform base_link")
+  Vector3d platform_real_position_;
+  Quaterniond platform_real_orientation_;
+  Vector6d platform_real_twist_;
+
+  // Arm state: position, orientation, and twist (in "ur5_arm_base_link")
+  Vector3d arm_real_position_;
+  Quaterniond arm_real_orientation_;
+  Vector6d arm_real_twist_;
+
+  // End-effector state: pose and twist (in "world" frame)
+  Vector7d ee_pose_world_;
+  Vector6d ee_twist_world_;
+
+
+  // Transform from base_link to world
+  Matrix6d rotation_base_;
+  // Derivative of kinematic constraints between the arm and the platform
+  Matrix6d kin_constraints_;
+
+
 
   // OBSTACLE AVOIDANCE:
   // Vector defining the position of an obstacle in the base_link
@@ -198,6 +197,7 @@ protected:
   // For human-robot interaction settings this might be desireable if the robot
   // is always carrying something with the robot.
   bool dont_avoid_front_;
+  
 
   // Point cloud from the laser scans
   laser_geometry::LaserProjection projector_;
@@ -218,14 +218,8 @@ protected:
   bool base_world_ready_;
   bool world_arm_ready_;
 
-  // FT FILTER:
-  // Parameters for the noisy wrench
-  double wrench_filter_factor_;
-  double force_dead_zone_thres_;
-  double torque_dead_zone_thres_;
-
   // Initialization
-  void init_TF();
+  void wait_for_transformations();
 
   // Control
   // void compute_admittance(Vector6d & desired_twist_platform,
