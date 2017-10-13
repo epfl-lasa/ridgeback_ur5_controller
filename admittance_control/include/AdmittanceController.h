@@ -103,6 +103,9 @@ protected:
   // Subscriber for the rear laser
   ros::Subscriber sub_laser_rear_;
 
+  // Subscriber for the offset of the attractor
+  ros::Subscriber sub_equilibrium_offset_;
+
 
   // Publishers:
 
@@ -146,6 +149,10 @@ protected:
   Vector3d equilibrium_position_;
   // equilibrium orientation of the coupling spring
   Quaterniond equilibrium_orientation_;
+
+  // receiving an offset from a topic
+  Vector3d equilibrium_offset_;
+
 
 
   // OUTPUT COMMANDS
@@ -197,7 +204,7 @@ protected:
   // For human-robot interaction settings this might be desireable if the robot
   // is always carrying something with the robot.
   bool dont_avoid_front_;
-  
+
 
   // Point cloud from the laser scans
   laser_geometry::LaserProjection projector_;
@@ -256,6 +263,8 @@ protected:
   void publish_debuggings_signals();
 
   void send_commands_to_robot();
+
+  void equilibrium_offset_callback(const geometry_msgs::PointPtr msg);
 
 public:
   AdmittanceController(ros::NodeHandle &n, double frequency,

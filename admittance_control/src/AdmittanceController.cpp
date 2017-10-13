@@ -62,6 +62,12 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
                                   &AdmittanceController::laser_rear_callback, this,
                                   ros::TransportHints().reliable().tcpNoDelay());
 
+
+  sub_equilibrium_offset_ = nh_.subscribe("/eq_offset", 10,
+                                          &AdmittanceController::equilibrium_offset_callback, this,
+                                          ros::TransportHints().reliable().tcpNoDelay());
+
+
   // Publishers
   pub_platform_cmd_ = nh_.advertise<geometry_msgs::Twist>(cmd_topic_platform, 5);
   pub_arm_cmd_ = nh_.advertise<geometry_msgs::Twist>(cmd_topic_arm, 5);
@@ -93,6 +99,7 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
   equilibrium_orientation_.coeffs() << equilibrium_full.bottomRows(4) /
                                     equilibrium_full.bottomRows(4).norm();
 
+  equilibrium_offset_.setZero();
 
   // starting from a state that does not create movements on the robot
   arm_real_orientation_ = equilibrium_orientation_;
@@ -171,6 +178,15 @@ void AdmittanceController::run() {
 
 }
 
+void AdmittanceController::equilibrium_offset_callback(const geometry_msgs::PointPtr msg) {
+
+  equilibrium_offset_ << msg->x , msg->y, msg->z;
+
+  ROS_INFO_STREAM("offset" << equilibrium_offset_(0) << " "
+                  << equilibrium_offset_(1) << " "
+                  << equilibrium_offset_(2) );
+}
+
 ///////////////////////////////////////////////////////////////
 ///////////////////// Admittance Dynamics /////////////////////
 ///////////////////////////////////////////////////////////////
@@ -182,7 +198,7 @@ void AdmittanceController::compute_admittance() {
   Vector6d error;
 
   // Translation error w.r.t. desired equilibrium
-  error.topRows(3) = arm_real_position_ - equilibrium_position_;
+  error.topRows(3) = arm_real_position_ - (equilibrium_position_ + equilibrium_offset_);
 
   // Orientation error w.r.t. desired equilibriums
   if (equilibrium_orientation_.coeffs().dot(arm_real_orientation_.coeffs()) < 0.0) {
