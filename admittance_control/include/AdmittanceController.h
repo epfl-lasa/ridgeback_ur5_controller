@@ -95,9 +95,9 @@ protected:
   // Publisher for the twist of arm endeffector
   ros::Publisher arm_pub_;
   // Publisher for the pose of arm endeffector in the world frame
-  ros::Publisher arm_pose_pub_world_;
+  ros::Publisher pub_ee_pose_world_;
   // Publisher for the twist of arm endeffector in the world frame
-  ros::Publisher arm_twist_pub_world_;
+  ros::Publisher pub_ee_twist_world_;
   // Publisher for the obstacle vector
   ros::Publisher obs_pub_;
   // Subscriber for the arm state
@@ -123,8 +123,8 @@ protected:
   Vector6d platform_desired_twist_;
 
   // For publishing ee state in world frame
-  geometry_msgs::Twist twist_arm_world_frame_;
-  geometry_msgs::Pose pose_ee_world_frame_;
+  // geometry_msgs::Twist twist_arm_world_frame_;
+  // geometry_msgs::Pose pose_ee_world_frame_;
 
 
 
@@ -140,11 +140,18 @@ protected:
   //         (in ur5_arm_base_link frame)
   // u_c_ -> control wrench (from yout goal-oriented controller)
   //         (in ur5_arm_base_link frame)
-  Vector3d x_a_position_, x_p_position_;
-  Quaterniond x_a_orientation_, x_p_orientation_;
-  Vector6d x_dot_a_;
-  Vector6d x_dot_p_;
-  Vector6d u_e_, u_c_;
+  Vector3d arm_real_position_, platform_real_position_;
+  Quaterniond arm_real_orientation_, platform_real_orientation_;
+  Vector6d arm_real_twist_;
+  Vector6d platform_real_twist_;
+
+  // ee in world frame (here end-effector is the same as the arm)
+  Vector7d ee_pose_world_;
+  Vector6d ee_twist_world_;
+
+
+  Vector6d wrench_external_;
+  Vector6d wrench_control_;
 
   Matrix6d rotation_base_; // Transform from base_link to
   // ur5_arm_base_link
@@ -159,8 +166,10 @@ protected:
   // d_e_position_ -> equilibrium position of the coupling spring
   // d_e_orientation -> equilibrium orientation of the coupling spring
   Matrix6d M_p_, M_a_, D_, D_p_, D_a_, K_;
-  Vector3d d_e_position_;
-  Quaterniond d_e_orientation_;
+
+
+  Vector3d equilibrium_position_;
+  Quaterniond equilibrium_orientation_;
 
   //workspace limits
   Vector6d workspace_limits_;
@@ -242,10 +251,11 @@ protected:
   bool get_rotation_matrix(Matrix6d & rotation_matrix,
                            tf::TransformListener & listener,
                            std::string from_frame,  std::string to_frame);
-  void get_arm_twist_world(geometry_msgs::Twist & ee_twist_world,
-                           tf::TransformListener & listener);
-  void get_ee_pose_world(geometry_msgs::Pose & ee_pose_world,
-                         tf::TransformListener & listener);
+
+  void publish_arm_state_in_world();
+
+  // void get_ee_pose_world(geometry_msgs::Pose & ee_pose_world,
+  //                        tf::TransformListener & listener);
 
   void limit_to_workspace();
 

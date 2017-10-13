@@ -39,30 +39,7 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
   force_dead_zone_thres_(force_dead_zone_thres),
   torque_dead_zone_thres_(torque_dead_zone_thres) {
 
-  // initializing the class variables
-  u_e_.setZero();
-  u_c_.setZero();
 
-  Vector7d d_e_full(d_e.data());
-  d_e_position_ << d_e_full.topRows(3);
-  // Make sure the orientation goal is normalized
-  d_e_orientation_.coeffs() << d_e_full.bottomRows(4) /
-                            d_e_full.bottomRows(4).norm();
-
-  // setting the robot state to zero and wait for data
-  x_a_position_.setZero();
-  x_p_position_.setZero();
-
-  // starting from a state that does not create movement on the robot
-  x_a_orientation_ = d_e_orientation_;
-
-
-
-
-  // ROS_INFO_STREAM("d_e_orientation :" << d_e_orientation_.coeffs());
-  // ROS_INFO_STREAM("w : " << d_e_orientation_.w());
-  // ROS_INFO_STREAM("vector : " << d_e_orientation_.vec());
-  // ROS_INFO_STREAM("its norm : " << d_e_orientation_.norm() );
 
 
 
@@ -78,10 +55,10 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
                                       &AdmittanceController::wrench_control_callback, this,
                                       ros::TransportHints().reliable().tcpNoDelay());
   arm_pub_ = nh_.advertise<geometry_msgs::Twist>(cmd_topic_arm, 5);
-  arm_pose_pub_world_ = nh_.advertise<geometry_msgs::Pose>(
-                          topic_arm_pose_world, 5);
-  arm_twist_pub_world_ = nh_.advertise<geometry_msgs::Twist>(
-                           topic_arm_twist_world, 5);
+  pub_ee_pose_world_ = nh_.advertise<geometry_msgs::PoseStamped>(
+                         topic_arm_pose_world, 5);
+  pub_ee_twist_world_ = nh_.advertise<geometry_msgs::TwistStamped>(
+                          topic_arm_twist_world, 5);
   arm_sub_ = nh_.subscribe(state_topic_arm, 10,
                            &AdmittanceController::state_arm_callback, this,
                            ros::TransportHints().reliable().tcpNoDelay());
@@ -99,12 +76,47 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
   obs_pub_ = nh_.advertise<geometry_msgs::PointStamped>("obstacles", 5);
 
 
-  while (nh_.ok() && !x_a_position_(0)) {
+
+  // initializing the class variables
+  wrench_external_.setZero();
+  wrench_control_.setZero();
+
+  ee_pose_world_.setZero();
+  ee_twist_world_.setZero();
+
+
+
+
+  Vector7d equilibrium_full(d_e.data());
+
+  equilibrium_position_ << equilibrium_full.topRows(3);
+
+  // Make sure the orientation goal is normalized
+  equilibrium_orientation_.coeffs() << equilibrium_full.bottomRows(4) /
+                                    equilibrium_full.bottomRows(4).norm();
+
+
+  // starting from a state that does not create movement on the robot
+  arm_real_orientation_ = equilibrium_orientation_;
+
+  // setting the robot state to zero and wait for data
+  arm_real_position_.setZero();
+  platform_real_position_.setZero();
+
+  while (nh_.ok() && !arm_real_position_(0)) {
     ROS_WARN_THROTTLE(1, "Waiting for the state of the arm...");
     ros::spinOnce();
     loop_rate_.sleep();
   }
   ROS_INFO("Started to receive the state of the arm.");
+
+
+
+  // ROS_INFO_STREAM("d_e_orientation :" << equilibrium_orientation_.coeffs());
+  // ROS_INFO_STREAM("w : " << equilibrium_orientation_.w());
+  // ROS_INFO_STREAM("vector : " << equilibrium_orientation_.vec());
+  // ROS_INFO_STREAM("its norm : " << equilibrium_orientation_.norm() );
+
 
 
 
@@ -115,8 +127,8 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
   kin_constraints_.bottomRightCorner(3, 3).setIdentity();
   // Screw on the z torque axis
   kin_constraints_.topRightCorner(3, 3) <<
-                                        0, 0, d_e_position_(1),
-                                        0, 0, -d_e_position_(0),
+                                        0, 0, equilibrium_position_(1),
+                                        0, 0, -equilibrium_position_(0),
                                         0, 0, 0;
   obs_vector_.setZero();
   laser_front_cloud_.points.resize(0);
@@ -132,6 +144,320 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
 
 
 }
+
+////////////////////
+/// CONTROL LOOP ///
+////////////////////
+void AdmittanceController::run() {
+
+  ROS_INFO("Running the admittance control loop .................");
+
+  // Init integrator
+  arm_desired_twist_.setZero();
+  platform_desired_twist_.setZero();
+
+
+  while (nh_.ok()) {
+    // Admittance Dynamics computation
+    // compute_admittance(desired_twist_platform, desired_twist_arm,
+    //                    loop_rate_.expectedCycleTime());
+    compute_admittance();
+
+    // limit the the movement of the arm to the permitted workspace
+    limit_to_workspace();
+
+    // Obstacle avoidance for the platform
+    // avoid_obstacles(platform_desired_twist_);
+
+    // Copy commands to messages
+    send_commands_to_robot();
+
+    // Arm pose/twist in the world frame
+    // get_arm_twist_world(twist_arm_world_frame_, listener_arm_);
+    publish_arm_state_in_world();
+
+    // get_ee_pose_world(pose_ee_world_frame_, listener_arm_);
+
+    // std::cout << "current pose of arm: " << pose_ee_world_frame_ << std::endl;
+
+    // pub_ee_twist_world_.publish(twist_arm_world_frame_);
+
+    // publishing visualization/debugging info
+    publish_debuggings_signals();
+
+    // For obstacle avoidance
+    update_obstacles();
+
+    ros::spinOnce();
+    loop_rate_.sleep();
+  }
+
+
+}
+
+// Admittance dynamics.
+// void AdmittanceController::compute_admittance(Vector6d &desired_twist_platform,
+//     Vector6d &desired_twist_arm,
+//     ros::Duration duration)
+
+void AdmittanceController::compute_admittance() {
+
+  Vector6d platform_desired_acceleration;
+  Vector6d arm_desired_accelaration;
+
+  Vector6d error;
+
+  // Translation error w.r.t. desired equilibrium
+  error.topRows(3) = arm_real_position_ - equilibrium_position_;
+
+  // Orientation error w.r.t. desired equilibriums
+  if (equilibrium_orientation_.coeffs().dot(arm_real_orientation_.coeffs()) < 0.0) {
+    arm_real_orientation_.coeffs() << -arm_real_orientation_.coeffs();
+  }
+
+  // ROS_INFO_STREAM("desired  :" << equilibrium_orientation_.coeffs());
+  // ROS_INFO_STREAM("real :" << arm_real_orientation_.coeffs());
+
+
+
+  Eigen::Quaterniond quat_rot_err(arm_real_orientation_
+                                  * equilibrium_orientation_.inverse());
+  if (quat_rot_err.coeffs().norm() > 1e-3) {
+    // Normalize error quaternion
+    quat_rot_err.coeffs() << quat_rot_err.coeffs() /
+                          quat_rot_err.coeffs().norm();
+  }
+  Eigen::AngleAxisd err_arm_des_orient(quat_rot_err);
+  error.bottomRows(3) << err_arm_des_orient.axis() *
+                      err_arm_des_orient.angle();
+
+
+  // ROS_INFO_STREAM("quat_rot_err :" << equilibrium_orientation_.coeffs());
+  // ROS_INFO_STREAM("w : " << quat_rot_err.w());
+  // ROS_INFO_STREAM("vector : " << quat_rot_err.vec());
+  // ROS_INFO_STREAM("its norm : " << quat_rot_err.norm() );
+
+
+
+  Vector6d coupling_wrench =  D_ * (arm_desired_twist_) + K_ * error;
+
+  platform_desired_acceleration = M_p_.inverse() * (- D_p_ * platform_desired_twist_
+                                  + rotation_base_ * kin_constraints_ * coupling_wrench);
+  arm_desired_accelaration = M_a_.inverse() * ( - coupling_wrench - D_a_ * arm_desired_twist_
+                             + wrench_external_ + wrench_control_);
+
+
+
+  // limiting the accelaration for better stability and safety
+  double p_acc_norm = (platform_desired_acceleration.segment(0, 3)).norm();
+  double a_acc_norm = (arm_desired_accelaration.segment(0, 3)).norm();
+
+  if (p_acc_norm > 2.0) {
+    ROS_WARN_STREAM_THROTTLE(1, "Admittance generates high platform accelaration! accleration norm: " << p_acc_norm);
+    platform_desired_acceleration.segment(0, 3) *= (2.0 / p_acc_norm);
+  }
+
+  if (a_acc_norm > 5.0) {
+    ROS_WARN_STREAM_THROTTLE(1, "Admittance generates high arm accelaration! accleration norm: " << a_acc_norm);
+    arm_desired_accelaration.segment(0, 3) *= (5.0 / a_acc_norm);
+  }
+
+
+  // Admittance dynamics
+  // x_ddot_p = M_p_.inverse() * (- D_p_ * platform_desired_twist_
+  //                              + rotation_base_ * kin_constraints_ *
+  //                              (D_ * (arm_desired_twist_) + K_ * error));
+  // x_ddot_a = M_a_.inverse() * ( - (D_ + D_a_) * (arm_desired_twist_)
+  //                               - K_ * error + u_e_ + u_c_);
+
+  // Integrate for velocity based interface
+  ros::Duration duration = loop_rate_.expectedCycleTime();
+
+  platform_desired_twist_ += platform_desired_acceleration * duration.toSec();
+  arm_desired_twist_      += arm_desired_accelaration      * duration.toSec();
+
+}
+
+/////////////////
+/// CALLBACKS ///
+/////////////////
+void AdmittanceController::state_platform_callback(
+  const nav_msgs::OdometryConstPtr msg) {
+  platform_real_position_ << msg->pose.pose.position.x, msg->pose.pose.position.y,
+                          msg->pose.pose.position.z;
+  platform_real_orientation_.coeffs() << msg->pose.pose.orientation.x,
+                                    msg->pose.pose.orientation.y, msg->pose.pose.orientation.z,
+                                    msg->pose.pose.orientation.w;
+
+  platform_real_twist_ << msg->twist.twist.linear.x, msg->twist.twist.linear.y,
+                       msg->twist.twist.linear.z, msg->twist.twist.angular.x,
+                       msg->twist.twist.angular.y, msg->twist.twist.angular.z;
+}
+
+void AdmittanceController::state_arm_callback(
+  const cartesian_state_msgs::PoseTwistConstPtr msg) {
+  arm_real_position_ << msg->pose.position.x, msg->pose.position.y,
+                     msg->pose.position.z;
+
+
+
+
+
+  arm_real_orientation_.coeffs() << msg->pose.orientation.x,
+                               msg->pose.orientation.y,
+                               msg->pose.orientation.z,
+                               msg->pose.orientation.w;
+
+  // ROS_INFO_STREAM("Orientation of the arm (x-y-z-w) : " <<
+  //                 msg->pose.orientation.x << " " <<
+  //                 msg->pose.orientation.y << " " <<
+  //                 msg->pose.orientation.z << " " <<
+  //                 msg->pose.orientation.w  );
+
+  arm_real_twist_ << msg->twist.linear.x, msg->twist.linear.y,
+                  msg->twist.linear.z, msg->twist.angular.x, msg->twist.angular.y,
+                  msg->twist.angular.z;
+
+
+
+}
+
+void AdmittanceController::wrench_callback(
+  const geometry_msgs::WrenchStampedConstPtr msg) {
+  Vector6d wrench_ft_frame;
+  Matrix6d rotation_ft_base;
+  if (ft_arm_ready_) {
+
+    // Reading the FT-sensor in its own frame (robotiq_force_torque_frame_id)
+    wrench_ft_frame << msg->wrench.force.x, msg->wrench.force.y,
+                    msg->wrench.force.z, msg->wrench.torque.x,
+                    msg->wrench.torque.y, msg->wrench.torque.z;
+
+    // Dead zone for the FT sensor
+    if (wrench_ft_frame.topRows(3).norm() < force_dead_zone_thres_) {
+      wrench_ft_frame.topRows(3).setZero();
+    }
+    if (wrench_ft_frame.bottomRows(3).norm() < torque_dead_zone_thres_) {
+      wrench_ft_frame.bottomRows(3).setZero();
+    }
+
+    // Get transform from arm base link to platform base link
+    get_rotation_matrix(rotation_ft_base, listener_ft_,
+                        "ur5_arm_base_link", "robotiq_force_torque_frame_id");
+
+    // Filter and update
+    wrench_external_ <<  (1 - wrench_filter_factor_) * wrench_external_ +
+                     wrench_filter_factor_ * rotation_ft_base * wrench_ft_frame;
+  }
+}
+
+void AdmittanceController::wrench_control_callback(
+  const geometry_msgs::WrenchStampedConstPtr msg) {
+  /*Vector6d wrench_control_world_frame;
+  Matrix6d rotation_world_base;
+  if (world_arm_ready_) {
+    get_rotation_matrix(rotation_world_base, listener_control_,
+                        "ur5_arm_base_link", "world");
+    wrench_control_world_frame << msg->wrench.force.x, msg->wrench.force.y,
+                               msg->wrench.force.z,  msg->wrench.torque.x, msg->wrench.torque.y,
+                               msg->wrench.torque.z;
+    u_c_ << rotation_world_base * wrench_control_world_frame;
+  }
+  */
+  if(msg->header.frame_id == "ur5_arm_base_link"){
+      wrench_control_ << msg->wrench.force.x, msg->wrench.force.y, msg->wrench.force.z,
+                  msg->wrench.torque.x, msg->wrench.torque.y, msg->wrench.torque.z;
+  }
+  else
+  {
+    ROS_WARN_THROTTLE(5,"The frame_id is not specified as ur5_arm_base_link");
+  }
+
+
+
+}
+
+
+void AdmittanceController::send_commands_to_robot() {
+
+  geometry_msgs::Twist platform_twist_cmd;
+  geometry_msgs::Twist arm_twist_cmd;
+
+  platform_twist_cmd.linear.x  = platform_desired_twist_(0);
+  platform_twist_cmd.linear.y  = platform_desired_twist_(1);
+  platform_twist_cmd.linear.z  = platform_desired_twist_(2);
+  platform_twist_cmd.angular.x = platform_desired_twist_(3);
+  platform_twist_cmd.angular.y = platform_desired_twist_(4);
+  platform_twist_cmd.angular.z = platform_desired_twist_(5);
+
+  arm_twist_cmd.linear.x  = arm_desired_twist_(0);
+  arm_twist_cmd.linear.y  = arm_desired_twist_(1);
+  arm_twist_cmd.linear.z  = arm_desired_twist_(2);
+  arm_twist_cmd.angular.x = arm_desired_twist_(3);
+  arm_twist_cmd.angular.y = arm_desired_twist_(4);
+  arm_twist_cmd.angular.z = arm_desired_twist_(5);
+
+  platform_pub_.publish(platform_twist_cmd);
+  arm_pub_.publish(arm_twist_cmd);
+}
+
+
+void AdmittanceController::limit_to_workspace() {
+
+
+  if (arm_real_position_(0) < workspace_limits_(0) || arm_real_position_(0) > workspace_limits_(1)) {
+    ROS_WARN_STREAM_THROTTLE (1, "Out of permitted workspace.  x = "
+                              << arm_real_position_(0) << " not in [" << workspace_limits_(0) << " , "
+                              << workspace_limits_(1) << "]");
+  }
+
+  if (arm_real_position_(1) < workspace_limits_(2) || arm_real_position_(1) > workspace_limits_(3)) {
+    ROS_WARN_STREAM_THROTTLE (1, "Out of permitted workspace.  y = "
+                              << arm_real_position_(1) << " not in [" << workspace_limits_(2) << " , "
+                              << workspace_limits_(3) << "]");
+  }
+
+  if (arm_real_position_(2) < workspace_limits_(4) || arm_real_position_(2) > workspace_limits_(5)) {
+    ROS_WARN_STREAM_THROTTLE (1, "Out of permitted workspace.  z = "
+                              << arm_real_position_(2) << " not in [" << workspace_limits_(4) << " , "
+                              << workspace_limits_(5) << "]");
+  }
+
+
+  if (arm_desired_twist_(0) < 0 && arm_real_position_(0) < workspace_limits_(0)) {
+    arm_desired_twist_(0) = 0;
+  }
+
+  if (arm_desired_twist_(0) > 0 && arm_real_position_(0) > workspace_limits_(1)) {
+    arm_desired_twist_(0) = 0;
+  }
+
+  if (arm_desired_twist_(1) < 0 && arm_real_position_(1) < workspace_limits_(2)) {
+    arm_desired_twist_(1) = 0;
+  }
+
+  if (arm_desired_twist_(1) > 0 && arm_real_position_(1) > workspace_limits_(3)) {
+    arm_desired_twist_(1) = 0;
+  }
+
+  if (arm_desired_twist_(2) < 0 && arm_real_position_(2) < workspace_limits_(4)) {
+    arm_desired_twist_(2) = 0;
+  }
+
+  if (arm_desired_twist_(2) > 0 && arm_real_position_(2) > workspace_limits_(5)) {
+    arm_desired_twist_(2) = 0;
+  }
+
+  double norm_vel_des = (arm_desired_twist_.segment(0, 3)).norm();
+
+  if (norm_vel_des > 1.0) {
+    ROS_WARN_STREAM_THROTTLE(1, "Admittance generate fast movements! velocity norm: " << norm_vel_des);
+
+    arm_desired_twist_.segment(0, 3) *= (1.0 / norm_vel_des);
+
+  }
+}
+
 
 //////////////////////
 /// INITIALIZATION ///
@@ -173,227 +499,162 @@ void AdmittanceController::init_TF() {
   ROS_INFO("The Force/Torque sensor is ready to use.");
 }
 
-////////////////////
-/// CONTROL LOOP ///
-////////////////////
-void AdmittanceController::run() {
-  // Desired twists
-
-  geometry_msgs::Twist ee_twist_world;
-  geometry_msgs::Pose ee_pose_world;
-
-  // Init integrator
-  arm_desired_twist_.setZero();
-  platform_desired_twist_.setZero();
-
-
-  while (nh_.ok()) {
-    // Admittance Dynamics computation
-    // compute_admittance(desired_twist_platform, desired_twist_arm,
-    //                    loop_rate_.expectedCycleTime());
-    compute_admittance();
-
-    // limit the the movement of the arm to the permitted workspace
-    limit_to_workspace();
-
-    // Obstacle avoidance for the platform
-    // avoid_obstacles(platform_desired_twist_);
 
 
 
-    // Copy commands to messages
-    send_commands_to_robot();
+////////////
+/// UTIL ///
+////////////
 
-    arm_pose_pub_world_.publish(pose_ee_world_frame_);
-    arm_twist_pub_world_.publish(twist_arm_world_frame_);
-
-    // publishing visualization/debugging info
-    publish_debuggings_signals();
-
-    // For obstacle avoidance
-    update_obstacles();
-
-    ros::spinOnce();
-    loop_rate_.sleep();
+bool AdmittanceController::get_rotation_matrix(Matrix6d & rotation_matrix,
+    tf::TransformListener & listener,
+    std::string from_frame,
+    std::string to_frame) {
+  tf::StampedTransform transform;
+  Matrix3d rotation_from_to;
+  try {
+    listener.lookupTransform(from_frame, to_frame,
+                             ros::Time(0), transform);
+    tf::matrixTFToEigen(transform.getBasis(), rotation_from_to);
+    rotation_matrix.setZero();
+    rotation_matrix.topLeftCorner(3, 3) = rotation_from_to;
+    rotation_matrix.bottomRightCorner(3, 3) = rotation_from_to;
+  }
+  catch (tf::TransformException ex) {
+    rotation_matrix.setZero();
+    ROS_WARN_STREAM("Waiting for TF from: " << from_frame << " to: " << to_frame );
+    return false;
   }
 
-
+  return true;
 }
 
-// Admittance dynamics.
-// void AdmittanceController::compute_admittance(Vector6d &desired_twist_platform,
-//     Vector6d &desired_twist_arm,
-//     ros::Duration duration)
 
-void AdmittanceController::compute_admittance() {
 
-  Vector6d platform_desired_acceleration;
-  Vector6d arm_desired_accelaration;
+void AdmittanceController::publish_arm_state_in_world() {
+  // publishing the cartesian velocity of the EE in the world-frame
+  Matrix6d rotation_a_base_world;
+  Matrix6d rotation_p_base_world;
 
-  Vector6d error;
 
-  // Translation error w.r.t. desired equilibrium
-  error.topRows(3) = x_a_position_ - d_e_position_;
+  if (arm_world_ready_ && base_world_ready_) {
+    get_rotation_matrix(rotation_a_base_world, listener_arm_,
+                        "world", "ur5_arm_base_link");
+    get_rotation_matrix(rotation_p_base_world, listener_arm_,
+                        "world", "base_link");
 
-  // Orientation error w.r.t. desired equilibriums
-  if (d_e_orientation_.coeffs().dot(x_a_orientation_.coeffs()) < 0.0) {
-    x_a_orientation_.coeffs() << -x_a_orientation_.coeffs();
+    ee_twist_world_ = rotation_a_base_world * arm_real_twist_
+                      + rotation_p_base_world * platform_real_twist_;
+    // ee_twist_world_ = arm_real_twist_ + platform_real_twist_;
   }
 
-  // ROS_INFO_STREAM("desired  :" << d_e_orientation_.coeffs());
-  // ROS_INFO_STREAM("real :" << x_a_orientation_.coeffs());
+  geometry_msgs::TwistStamped msg_twist;
+  msg_twist.header.stamp    = ros::Time::now();
+  msg_twist.header.frame_id = "world";
+  msg_twist.twist.linear.x = ee_twist_world_(0);
+  msg_twist.twist.linear.y = ee_twist_world_(1);
+  msg_twist.twist.linear.z = ee_twist_world_(2);
+  msg_twist.twist.angular.x = ee_twist_world_(3);
+  msg_twist.twist.angular.y = ee_twist_world_(4);
+  msg_twist.twist.angular.z = ee_twist_world_(5);
+  pub_ee_twist_world_.publish(msg_twist);
 
 
+  // publishing the cartesian position of the EE in the world-frame
 
-  Eigen::Quaterniond quat_rot_err(x_a_orientation_
-                                  * d_e_orientation_.inverse());
-  if (quat_rot_err.coeffs().norm() > 1e-3) {
-    // Normalize error quaternion
-    quat_rot_err.coeffs() << quat_rot_err.coeffs() /
-                          quat_rot_err.coeffs().norm();
-  }
-  Eigen::AngleAxisd err_arm_des_orient(quat_rot_err);
-  error.bottomRows(3) << err_arm_des_orient.axis() *
-                      err_arm_des_orient.angle();
+  tf::StampedTransform transform;
 
 
-  // ROS_INFO_STREAM("quat_rot_err :" << d_e_orientation_.coeffs());
-  // ROS_INFO_STREAM("w : " << quat_rot_err.w());
-  // ROS_INFO_STREAM("vector : " << quat_rot_err.vec());
-  // ROS_INFO_STREAM("its norm : " << quat_rot_err.norm() );
+  if (arm_world_ready_ && base_world_ready_) {
+    try {
+      // listener.lookupTransform("ur5_arm_base_link", "robotiq_force_torque_frame_id",
+      listener_arm_.lookupTransform("world", "robotiq_force_torque_frame_id",
+                                    ros::Time(0), transform);
 
+      // transform.getRotation().getW();
 
-
-  Vector6d coupling_wrench =  D_ * (arm_desired_twist_) + K_ * error;
-
-  platform_desired_acceleration = M_p_.inverse() * (- D_p_ * platform_desired_twist_
-                                  + rotation_base_ * kin_constraints_ * coupling_wrench);
-  arm_desired_accelaration = M_a_.inverse() * ( - coupling_wrench - D_a_ * arm_desired_twist_ + u_e_ + u_c_);
-
-
-
-  // limiting the accelaration for better stability and safety
-  double p_acc_norm = (platform_desired_acceleration.segment(0, 3)).norm();
-  double a_acc_norm = (arm_desired_accelaration.segment(0, 3)).norm();
-
-  if (p_acc_norm > 2.0) {
-    ROS_WARN_STREAM_THROTTLE(1, "Admittance generates high platform accelaration! accleration norm: " << p_acc_norm);
-    platform_desired_acceleration.segment(0, 3) *= (2.0 / p_acc_norm);
-  }
-
-  if (a_acc_norm > 5.0) {
-    ROS_WARN_STREAM_THROTTLE(1, "Admittance generates high arm accelaration! accleration norm: " << a_acc_norm);
-    arm_desired_accelaration.segment(0, 3) *= (5.0 / a_acc_norm);
-  }
-
-
-  // Admittance dynamics
-  // x_ddot_p = M_p_.inverse() * (- D_p_ * platform_desired_twist_
-  //                              + rotation_base_ * kin_constraints_ *
-  //                              (D_ * (arm_desired_twist_) + K_ * error));
-  // x_ddot_a = M_a_.inverse() * ( - (D_ + D_a_) * (arm_desired_twist_)
-  //                               - K_ * error + u_e_ + u_c_);
-
-  // Integrate for velocity based interface
-  ros::Duration duration = loop_rate_.expectedCycleTime();
-
-  platform_desired_twist_ += platform_desired_acceleration * duration.toSec();
-  arm_desired_twist_      += arm_desired_accelaration      * duration.toSec();
-
-}
-
-/////////////////
-/// CALLBACKS ///
-/////////////////
-void AdmittanceController::state_platform_callback(
-  const nav_msgs::OdometryConstPtr msg) {
-  x_p_position_ << msg->pose.pose.position.x, msg->pose.pose.position.y,
-                msg->pose.pose.position.z;
-  x_p_orientation_.coeffs() << msg->pose.pose.orientation.x,
-                          msg->pose.pose.orientation.y, msg->pose.pose.orientation.z,
-                          msg->pose.pose.orientation.w;
-
-  x_dot_p_ << msg->twist.twist.linear.x, msg->twist.twist.linear.y,
-           msg->twist.twist.linear.z, msg->twist.twist.angular.x,
-           msg->twist.twist.angular.y, msg->twist.twist.angular.z;
-}
-
-void AdmittanceController::state_arm_callback(
-  const cartesian_state_msgs::PoseTwistConstPtr msg) {
-  x_a_position_ << msg->pose.position.x, msg->pose.position.y,
-                msg->pose.position.z;
-
-
-
-
-
-  x_a_orientation_.coeffs() << msg->pose.orientation.x,
-                          msg->pose.orientation.y,
-                          msg->pose.orientation.z,
-                          msg->pose.orientation.w;
-
-  // ROS_INFO_STREAM("Orientation of the arm (x-y-z-w) : " <<
-  //                 msg->pose.orientation.x << " " <<
-  //                 msg->pose.orientation.y << " " <<
-  //                 msg->pose.orientation.z << " " <<
-  //                 msg->pose.orientation.w  );
-
-  x_dot_a_ << msg->twist.linear.x, msg->twist.linear.y,
-           msg->twist.linear.z, msg->twist.angular.x, msg->twist.angular.y,
-           msg->twist.angular.z;
-
-  // Arm pose/twist in the world frame
-  get_arm_twist_world(twist_arm_world_frame_, listener_arm_);
-  get_ee_pose_world(pose_ee_world_frame_, listener_arm_);
-
-  // std::cout << "current pose of arm: " << pose_ee_world_frame_ << std::endl;
-
-}
-
-void AdmittanceController::wrench_callback(
-  const geometry_msgs::WrenchStampedConstPtr msg) {
-  // Get transform from arm base link to platform base link
-  Vector6d wrench_ft_frame;
-  Matrix6d rotation_ft_base;
-  if (ft_arm_ready_) {
-    get_rotation_matrix(rotation_ft_base, listener_ft_,
-                        "ur5_arm_base_link", "robotiq_force_torque_frame_id");
-
-    wrench_ft_frame << msg->wrench.force.x, msg->wrench.force.y,
-                    msg->wrench.force.z, msg->wrench.torque.x,
-                    msg->wrench.torque.y, msg->wrench.torque.z;
-
-    // Dead zone for the FT sensor
-    if (wrench_ft_frame.topRows(3).norm() < force_dead_zone_thres_) {
-      wrench_ft_frame.topRows(3).setZero();
+      ee_pose_world_(0) = transform.getOrigin().x();
+      ee_pose_world_(1) = transform.getOrigin().y();
+      ee_pose_world_(2) = transform.getOrigin().z();
+      ee_pose_world_(3) = transform.getRotation().x();
+      ee_pose_world_(4) = transform.getRotation().y();
+      ee_pose_world_(5) = transform.getRotation().z();
+      ee_pose_world_(6) = transform.getRotation().w();
     }
-    if (wrench_ft_frame.bottomRows(3).norm() < torque_dead_zone_thres_) {
-      wrench_ft_frame.bottomRows(3).setZero();
+    catch (tf::TransformException ex) {
+      ROS_WARN("Couldn't lookup for ee to world transform...");
+      ee_pose_world_.setZero();
+      ee_pose_world_(6) = 1; // quat.w = 1
     }
-
-    // Filter and update
-    u_e_ <<  (1 - wrench_filter_factor_) * u_e_ +
-         wrench_filter_factor_ * rotation_ft_base * wrench_ft_frame;
   }
+
+  geometry_msgs::PoseStamped msg_pose;
+  msg_pose.header.stamp    = ros::Time::now();
+  msg_pose.header.frame_id = "world";
+  msg_pose.pose.position.x = ee_pose_world_(0);
+  msg_pose.pose.position.y = ee_pose_world_(1);
+  msg_pose.pose.position.z = ee_pose_world_(2);
+  msg_pose.pose.orientation.x = ee_pose_world_(3);
+  msg_pose.pose.orientation.y = ee_pose_world_(4);
+  msg_pose.pose.orientation.z = ee_pose_world_(5);
+  msg_pose.pose.orientation.w = ee_pose_world_(6);
+  pub_ee_pose_world_.publish(msg_pose);
+
 }
 
-void AdmittanceController::wrench_control_callback(
-  const geometry_msgs::WrenchStampedConstPtr msg) {
-  /*Vector6d wrench_control_world_frame;
-  Matrix6d rotation_world_base;
-  if (world_arm_ready_) {
-    get_rotation_matrix(rotation_world_base, listener_control_,
-                        "ur5_arm_base_link", "world");
-    wrench_control_world_frame << msg->wrench.force.x, msg->wrench.force.y,
-                               msg->wrench.force.z,  msg->wrench.torque.x, msg->wrench.torque.y,
-                               msg->wrench.torque.z;
-    u_c_ << rotation_world_base * wrench_control_world_frame;
-  }
-  */
-  u_c_ << msg->wrench.force.x, msg->wrench.force.y, msg->wrench.force.z,
-       msg->wrench.torque.x, msg->wrench.torque.y, msg->wrench.torque.z;
+
+
+void AdmittanceController::publish_debuggings_signals() {
+
+  geometry_msgs::WrenchStamped wrench_msg;
+
+  wrench_msg.header.stamp    = ros::Time::now();
+  wrench_msg.header.frame_id = "ur5_arm_base_link";
+  wrench_msg.wrench.force.x  = wrench_external_(0);
+  wrench_msg.wrench.force.y  = wrench_external_(1);
+  wrench_msg.wrench.force.z  = wrench_external_(2);
+  wrench_msg.wrench.torque.x = wrench_external_(3);
+  wrench_msg.wrench.torque.y = wrench_external_(4);
+  wrench_msg.wrench.torque.z = wrench_external_(5);
+  wrench_pub_u_e_.publish(wrench_msg);
+
+  wrench_msg.header.stamp    = ros::Time::now();
+  wrench_msg.header.frame_id = "ur5_arm_base_link";
+  wrench_msg.wrench.force.x  = wrench_control_(0);
+  wrench_msg.wrench.force.y  = wrench_control_(1);
+  wrench_msg.wrench.force.z  = wrench_control_(2);
+  wrench_msg.wrench.torque.x = wrench_control_(3);
+  wrench_msg.wrench.torque.y = wrench_control_(4);
+  wrench_msg.wrench.torque.z = wrench_control_(5);
+  wrench_pub_u_c_.publish(wrench_msg);
+
+
+  geometry_msgs::PointStamped obs_pub_msg;
+
+  obs_pub_msg.header.stamp = ros::Time::now();
+  obs_pub_msg.header.frame_id = "base_link";
+  obs_pub_msg.point.x = obs_vector_(0);
+  obs_pub_msg.point.y = obs_vector_(1);
+  obs_pub_msg.point.z = obs_vector_(2);
+  obs_pub_.publish(obs_pub_msg);
 
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+//////////////////////////////////////////////////////////////////
+/// Obstacale avoidance which need to be moved to another node ///
+//////////////////////////////////////////////////////////////////
 
 void AdmittanceController::laser_front_callback(
   const sensor_msgs::LaserScanPtr msg) {
@@ -502,210 +763,4 @@ bool AdmittanceController::isObstacleMeasurement(Vector3d &measurement) {
          (std::abs(measurement(0)) > (0.48 + self_detect_thres_) ||
           std::abs(measurement(1)) > (0.4 + self_detect_thres_)) &&
          (!dont_avoid_front_ || measurement(0) < 0.48);
-}
-
-
-////////////
-/// UTIL ///
-////////////
-void AdmittanceController::get_arm_twist_world(
-  geometry_msgs::Twist &ee_twist_world,
-  tf::TransformListener & listener) {
-  // publishing the cartesian velocity of the EE in the world-frame
-  Matrix6d rotation_a_base_world;
-  Matrix6d rotation_p_base_world;
-  Vector6d twist_arm_world_frame;
-
-  twist_arm_world_frame.setZero();
-
-  if (arm_world_ready_ && base_world_ready_) {
-    get_rotation_matrix(rotation_a_base_world, listener,
-                        "world", "ur5_arm_base_link");
-    get_rotation_matrix(rotation_p_base_world, listener,
-                        "world", "base_link");
-    // twist_arm_world_frame = rotation_a_base_world * x_dot_a_
-    // + rotation_p_base_world * x_dot_p_;
-    twist_arm_world_frame = x_dot_a_ + x_dot_p_;
-  }
-  ee_twist_world.linear.x = twist_arm_world_frame(0);
-  ee_twist_world.linear.y = twist_arm_world_frame(1);
-  ee_twist_world.linear.z = twist_arm_world_frame(2);
-  ee_twist_world.angular.x = twist_arm_world_frame(3);
-  ee_twist_world.angular.y = twist_arm_world_frame(4);
-  ee_twist_world.angular.z = twist_arm_world_frame(5);
-}
-
-void AdmittanceController::get_ee_pose_world(
-  geometry_msgs::Pose &ee_pose_world,
-  tf::TransformListener & listener) {
-  // publishing the cartesian velocity of the EE in the world-frame
-  tf::StampedTransform transform;
-
-  if (arm_world_ready_ && base_world_ready_) {
-    try {
-      //listener.lookupTransform("world", "robotiq_force_torque_frame_id",
-      listener.lookupTransform("ur5_arm_base_link", "robotiq_force_torque_frame_id",
-                               ros::Time(0), transform);
-      transform.getRotation().getW();
-      ee_pose_world.position.x = transform.getOrigin().x();
-      ee_pose_world.position.y = transform.getOrigin().y();
-      ee_pose_world.position.z = transform.getOrigin().z();
-      ee_pose_world.orientation.x = transform.getRotation().x();
-      ee_pose_world.orientation.y = transform.getRotation().y();
-      ee_pose_world.orientation.z = transform.getRotation().z();
-      ee_pose_world.orientation.w = transform.getRotation().w();
-    }
-    catch (tf::TransformException ex) {
-      ee_pose_world.position.x = 0;
-      ee_pose_world.position.y = 0;
-      ee_pose_world.position.z = 0;
-      ee_pose_world.orientation.x = 0;
-      ee_pose_world.orientation.y = 0;
-      ee_pose_world.orientation.z = 0;
-      ee_pose_world.orientation.w = 1;
-      ROS_INFO("Couldn't lookup for ee to world transform...");
-    }
-  }
-}
-
-bool AdmittanceController::get_rotation_matrix(Matrix6d & rotation_matrix,
-    tf::TransformListener & listener,
-    std::string from_frame,
-    std::string to_frame) {
-  tf::StampedTransform transform;
-  Matrix3d rotation_from_to;
-  try {
-    listener.lookupTransform(from_frame, to_frame,
-                             ros::Time(0), transform);
-    tf::matrixTFToEigen(transform.getBasis(), rotation_from_to);
-    rotation_matrix.setZero();
-    rotation_matrix.topLeftCorner(3, 3) = rotation_from_to;
-    rotation_matrix.bottomRightCorner(3, 3) = rotation_from_to;
-  }
-  catch (tf::TransformException ex) {
-    rotation_matrix.setZero();
-    ROS_INFO_STREAM("Waiting for TF from: " << from_frame << " to: " << to_frame );
-    return false;
-  }
-
-  return true;
-}
-
-void AdmittanceController::publish_debuggings_signals() {
-
-  geometry_msgs::WrenchStamped wrench_u_e_;
-  geometry_msgs::WrenchStamped wrench_u_c_;
-  geometry_msgs::PointStamped obs_pub_msg;
-
-  wrench_u_e_.header.stamp    = ros::Time::now();
-  wrench_u_e_.header.frame_id = "ur5_arm_base_link";
-  wrench_u_e_.wrench.force.x  = u_e_(0);
-  wrench_u_e_.wrench.force.y  = u_e_(1);
-  wrench_u_e_.wrench.force.z  = u_e_(2);
-  wrench_u_e_.wrench.torque.x = u_e_(3);
-  wrench_u_e_.wrench.torque.y = u_e_(4);
-  wrench_u_e_.wrench.torque.z = u_e_(5);
-  wrench_pub_u_e_.publish(wrench_u_e_);
-
-  wrench_u_c_.header.stamp    = ros::Time::now();
-  wrench_u_c_.header.frame_id = "ur5_arm_base_link";
-  wrench_u_c_.wrench.force.x  = u_c_(0);
-  wrench_u_c_.wrench.force.y  = u_c_(1);
-  wrench_u_c_.wrench.force.z  = u_c_(2);
-  wrench_u_c_.wrench.torque.x = u_c_(3);
-  wrench_u_c_.wrench.torque.y = u_c_(4);
-  wrench_u_c_.wrench.torque.z = u_c_(5);
-  wrench_pub_u_c_.publish(wrench_u_c_);
-
-  obs_pub_msg.header.stamp = ros::Time::now();
-  obs_pub_msg.header.frame_id = "base_link";
-  obs_pub_msg.point.x = obs_vector_(0);
-  obs_pub_msg.point.y = obs_vector_(1);
-  obs_pub_msg.point.z = obs_vector_(2);
-  obs_pub_.publish(obs_pub_msg);
-
-}
-
-
-void AdmittanceController::send_commands_to_robot() {
-
-  geometry_msgs::Twist platform_twist_cmd;
-  geometry_msgs::Twist arm_twist_cmd;
-
-  platform_twist_cmd.linear.x  = platform_desired_twist_(0);
-  platform_twist_cmd.linear.y  = platform_desired_twist_(1);
-  platform_twist_cmd.linear.z  = platform_desired_twist_(2);
-  platform_twist_cmd.angular.x = platform_desired_twist_(3);
-  platform_twist_cmd.angular.y = platform_desired_twist_(4);
-  platform_twist_cmd.angular.z = platform_desired_twist_(5);
-
-  arm_twist_cmd.linear.x  = arm_desired_twist_(0);
-  arm_twist_cmd.linear.y  = arm_desired_twist_(1);
-  arm_twist_cmd.linear.z  = arm_desired_twist_(2);
-  arm_twist_cmd.angular.x = arm_desired_twist_(3);
-  arm_twist_cmd.angular.y = arm_desired_twist_(4);
-  arm_twist_cmd.angular.z = arm_desired_twist_(5);
-
-  platform_pub_.publish(platform_twist_cmd);
-  arm_pub_.publish(arm_twist_cmd);
-}
-
-
-void AdmittanceController::limit_to_workspace() {
-
-
-  if (x_a_position_(0) < workspace_limits_(0) || x_a_position_(0) > workspace_limits_(1)) {
-    ROS_WARN_STREAM_THROTTLE (1, "Out of permitted workspace.  x = "
-                              << x_a_position_(0) << " not in [" << workspace_limits_(0) << " , "
-                              << workspace_limits_(1) << "]");
-  }
-
-  if (x_a_position_(1) < workspace_limits_(2) || x_a_position_(1) > workspace_limits_(3)) {
-    ROS_WARN_STREAM_THROTTLE (1, "Out of permitted workspace.  y = "
-                              << x_a_position_(1) << " not in [" << workspace_limits_(2) << " , "
-                              << workspace_limits_(3) << "]");
-  }
-
-  if (x_a_position_(2) < workspace_limits_(4) || x_a_position_(2) > workspace_limits_(5)) {
-    ROS_WARN_STREAM_THROTTLE (1, "Out of permitted workspace.  z = "
-                              << x_a_position_(2) << " not in [" << workspace_limits_(4) << " , "
-                              << workspace_limits_(5) << "]");
-  }
-
-
-  if (arm_desired_twist_(0) < 0 && x_a_position_(0) < workspace_limits_(0)) {
-    arm_desired_twist_(0) = 0;
-  }
-
-  if (arm_desired_twist_(0) > 0 && x_a_position_(0) > workspace_limits_(1)) {
-    arm_desired_twist_(0) = 0;
-  }
-
-  if (arm_desired_twist_(1) < 0 && x_a_position_(1) < workspace_limits_(2)) {
-    arm_desired_twist_(1) = 0;
-  }
-
-  if (arm_desired_twist_(1) > 0 && x_a_position_(1) > workspace_limits_(3)) {
-    arm_desired_twist_(1) = 0;
-  }
-
-  if (arm_desired_twist_(2) < 0 && x_a_position_(2) < workspace_limits_(4)) {
-    arm_desired_twist_(2) = 0;
-  }
-
-  if (arm_desired_twist_(2) > 0 && x_a_position_(2) > workspace_limits_(5)) {
-    arm_desired_twist_(2) = 0;
-  }
-
-  double norm_vel_des = (arm_desired_twist_.segment(0, 3)).norm();
-
-  if (norm_vel_des > 1.0) {
-    ROS_WARN_STREAM_THROTTLE(1, "Admittance generate fast movements! velocity norm: " << norm_vel_des);
-
-    arm_desired_twist_.segment(0, 3) *= (1.0 / norm_vel_des);
-
-  }
-
-
-
 }
