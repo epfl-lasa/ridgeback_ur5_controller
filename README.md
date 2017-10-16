@@ -49,10 +49,8 @@ $ catkin_make
 
 ## Control Architecture
 
-<object data="http://yoursite.com/the.pdf" type="application/pdf" width="700px" height="700px">
-    <embed src="fig_control_schematics.pdf">
-    </embed>
-</object>
+![alt text](fig_control_schematics.png "Control architecture")
+
 
 
 
