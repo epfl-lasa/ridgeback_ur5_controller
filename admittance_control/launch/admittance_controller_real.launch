@@ -1,38 +1,37 @@
 <?xml version="1.0" ?>
 <launch>
-  <!--
-      Launch file for the admittance controller
-  -->
+  <!-- Launch file for the admittance controller -->
 
   <!-- Communication with the arm, reading the state of the arm and commanding velocities -->
-  <arg name="STATE_TOPIC_ARM" default="/ur5/ur5_cartesian_velocity_controller_sim/ee_state"/>
-  <arg name="CMD_TOPIC_ARM" default="/ur5/ur5_cartesian_velocity_controller_sim/command_cart_vel"/>
+  <arg name="TOPIC_ARM_STATE"   default="/ur5/ur5_cartesian_velocity_controller_sim/ee_state"         />
+  <arg name="TOPIC_ARM_COMMAND" default="/ur5/ur5_cartesian_velocity_controller_sim/command_cart_vel" />
 
   <!-- Communication with the platfrom, reading the state of the arm and commanding velocities --> 
-  <arg name="STATE_TOPIC_PLATFORM" default="/odometry/filtered"/>
-  <arg name="CMD_TOPIC_PLATFORM" default="/cmd_vel" />
+  <arg name="TOPIC_PLATFORM_STATE"   default="/odometry/filtered" />
+  <arg name="TOPIC_PLATFORM_COMMAND" default="/cmd_vel"           />
 
   <!-- Communication with the Force/Torque sensor, reading the force/torque -->
   <!-- The wrench is specified in robotiq_force_torque_frame_id -->
-  <arg name="WRENCH_TOPIC" default="/admittance_control/wrench" />
-  <arg name="WRENCH_FILTER_FACTOR" default="0.1" />
-  <arg name="FORCE_DEAD_ZONE_THRES" default="6.5" />
+  <arg name="TOPIC_EXTERNAL_WRENCH"  default="/admittance_control/wrench" />
+  <arg name="WRENCH_FILTER_FACTOR"   default="0.1" />
+  <arg name="FORCE_DEAD_ZONE_THRES"  default="6.5" />
   <arg name="TORQUE_DEAD_ZONE_THRES" default="0.5" />
 
-  <!-- An input wrench that can be used for control -->
-  <arg name="WRENCH_CONTROL_TOPIC" default="/admittance_control/wrench_control" />
-
+  <!-- An input wrench that can be used for control (expected to be in ur5_arm_base_link)-->
+  <arg name="TOPIC_CONTROL_WRENCH" default="/admittance_control/wrench_control" />
+  
+  <!-- An input wrench that can be used to set the equilibrium point -->
   <arg name="TOPIC_EQUILIBRIUM" default="/admittance_control/equilibrium" />
 
 
   <!-- The received wrench by the FT-sensor and the controller will be published for dubugging/visualization -->
   <!-- They will be specified in ur5_arm_base_link -->
-  <arg name="TOPIC_TWIST_U_E" default="/admittance_control/u_e"/>
-  <arg name="TOPIC_TWIST_U_C" default="/admittance_control/u_c"/>
+  <arg name="TOPIC_EXTERNAL_WRENCH_ARM_FRAME" default="/admittance_control/transformed/external_wrench" />
+  <arg name="TOPIC_CONTROL_WRENCH_ARM_FRAME"  default="/admittance_control/transformed/control_wrench"  />
 
   <!-- The node will publish the position and the velocity of the in the world frame (Not very sure, need to be checked) -->
-  <arg name="TOPIC_ARM_TWIST_WORLD" default="/admittance_control/ee_twist_world"/>
-  <arg name="TOPIC_ARM_POSE_WORLD" default="/admittance_control/ee_pose_world"/>
+  <arg name="TOPIC_ARM_POSE_WORLD"  default="/admittance_control/ee_pose_world"  />
+  <arg name="TOPIC_ARM_TWIST_WORLD" default="/admittance_control/ee_twist_world" />
 
 
 
@@ -41,33 +40,34 @@
   <arg name="ADMITTANCE_PARAMS_FILE" default="$(find admittance_control)/config/admittance_params_real.yaml" />
   
   <!-- Laser scans and navigation settings -->
-  <arg name="LASER_FRONT_TOPIC" default="/front/scan" />
-  <arg name="LASER_REAR_TOPIC" default="/rear/scan" />
-  <arg name="OBS_DISTANCE_THRES" default="0.3" />
-  <arg name="SELF_DETECT_THRES" default="0.02" />
-  <arg name="DONT_AVOID_FRONT" default="true" />
+  <arg name="TOPIC_LASER_FRONT"  default="/front/scan" />
+  <arg name="TOPIC_LASER_REAR"   default="/rear/scan"  />
+  <arg name="OBS_DISTANCE_THRES" default="0.3"         />
+  <arg name="SELF_DETECT_THRES"  default="0.02"        />
+  <arg name="DONT_AVOID_FRONT"   default="true"        />
 
 
   <!-- Converting args into params -->
-  <param name="state_topic_arm" value="$(arg STATE_TOPIC_ARM)"/>
-  <param name="cmd_topic_arm" value="$(arg CMD_TOPIC_ARM)"/>
-  <param name="topic_arm_twist_world" value="$(arg TOPIC_ARM_TWIST_WORLD)"/>
-  <param name="topic_arm_pose_world" value="$(arg TOPIC_ARM_POSE_WORLD)"/>
-  <param name="topic_wrench_u_e" value="$(arg TOPIC_TWIST_U_E)"/>
-  <param name="topic_wrench_u_c" value="$(arg TOPIC_TWIST_U_C)"/>
-  <param name="state_topic_platform" value="$(arg STATE_TOPIC_PLATFORM)"/>
-  <param name="cmd_topic_platform" value="$(arg CMD_TOPIC_PLATFORM)"/>
-  <param name="wrench_topic" value="$(arg WRENCH_TOPIC)"/>
-  <param name="wrench_control_topic" value="$(arg WRENCH_CONTROL_TOPIC)"/>
-  <param name="topic_equilibrium" value="$(arg TOPIC_EQUILIBRIUM)"/>
-  <param name="wrench_filter_factor" value="$(arg WRENCH_FILTER_FACTOR)"/>
-  <param name="force_dead_zone_thres" value="$(arg FORCE_DEAD_ZONE_THRES)"/>
-  <param name="torque_dead_zone_thres" value="$(arg TORQUE_DEAD_ZONE_THRES)"/>
-  <param name="laser_front_topic" value="$(arg LASER_FRONT_TOPIC)"/>
-  <param name="laser_rear_topic" value="$(arg LASER_REAR_TOPIC)"/>
-  <param name="obs_distance_thres" value="$(arg OBS_DISTANCE_THRES)"/>
-  <param name="self_detect_thres" value="$(arg SELF_DETECT_THRES)"/>
-  <param name="dont_avoid_front" value="$(arg DONT_AVOID_FRONT)"/>
+  <param name="topic_arm_state"                  value="$(arg TOPIC_ARM_STATE)"                />
+  <param name="topic_arm_command"                value="$(arg TOPIC_ARM_COMMAND)"              />
+  <param name="topic_platform_state"             value="$(arg TOPIC_PLATFORM_STATE)"           />
+  <param name="topic_platform_command"           value="$(arg TOPIC_PLATFORM_COMMAND)"         />
+  <param name="topic_external_wrench"            value="$(arg TOPIC_EXTERNAL_WRENCH)"          />
+  <param name="topic_control_wrench"             value="$(arg TOPIC_CONTROL_WRENCH)"           />
+  <param name="topic_equilibrium"                value="$(arg TOPIC_EQUILIBRIUM)"              />
+  <param name="topic_external_wrench_arm_frame"  value="$(arg TOPIC_EXTERNAL_WRENCH_ARM_FRAME)"/>
+  <param name="topic_control_external_arm_frame" value="$(arg TOPIC_CONTROL_WRENCH_ARM_FRAME)" />
+  <param name="topic_arm_pose_world"             value="$(arg TOPIC_ARM_POSE_WORLD)"           />
+  <param name="topic_arm_twist_world"            value="$(arg TOPIC_ARM_TWIST_WORLD)"          />
+  <param name="topic_laser_front"                value="$(arg TOPIC_LASER_FRONT)"              />
+  <param name="topic_laser_rear"                 value="$(arg TOPIC_LASER_REAR)"               />
+
+  <param name="wrench_filter_factor"             value="$(arg WRENCH_FILTER_FACTOR)"           />
+  <param name="force_dead_zone_thres"            value="$(arg FORCE_DEAD_ZONE_THRES)"          />
+  <param name="torque_dead_zone_thres"           value="$(arg TORQUE_DEAD_ZONE_THRES)"         />
+  <param name="obs_distance_thres"               value="$(arg OBS_DISTANCE_THRES)"             />
+  <param name="self_detect_thres"                value="$(arg SELF_DETECT_THRES)"              />
+  <param name="dont_avoid_front"                 value="$(arg DONT_AVOID_FRONT)"               />
 
   <rosparam file="$(arg ADMITTANCE_PARAMS_FILE)" command="load"/>
 
