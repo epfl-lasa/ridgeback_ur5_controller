@@ -10,12 +10,12 @@ int main(int argc, char **argv)
 
   // Parameters
   std::string state_topic_arm, cmd_topic_arm, topic_arm_pose_world,
-    topic_arm_twist_world, topic_wrench_u_e, topic_wrench_u_c,
-    cmd_topic_platform, state_topic_platform, wrench_topic,
-    wrench_control_topic, laser_front_topic, laser_rear_topic;
+      topic_arm_twist_world, topic_wrench_u_e, topic_wrench_u_c,
+      cmd_topic_platform, state_topic_platform, wrench_topic, topic_equilibrium,
+      wrench_control_topic, laser_front_topic, laser_rear_topic;
   std::vector<double> M_p, M_a, D, D_p, D_a, K, d_e, workspace_limits;
   double wrench_filter_factor, force_dead_zone_thres,
-          torque_dead_zone_thres, obs_distance_thres, self_detect_thres;
+         torque_dead_zone_thres, obs_distance_thres, self_detect_thres;
   bool dont_avoid_front;
 
   if (!nh.getParam("state_topic_arm", state_topic_arm))
@@ -135,7 +135,13 @@ int main(int argc, char **argv)
 
   if (!nh.getParam("workspace_limits", workspace_limits))
   {
-    ROS_ERROR("Couldn't retrieve the desired equilibrium of the spring.");
+    ROS_ERROR("Couldn't retrieve the limits of the workspace.");
+    return -1;
+  }
+
+  if (!nh.getParam("topic_equilibrium", topic_equilibrium))
+  {
+    ROS_ERROR("Couldn't retrieve the topic name for desired equilibrium point.");
     return -1;
   }
 
@@ -176,26 +182,27 @@ int main(int argc, char **argv)
     return -1;
   }
   AdmittanceController admittance_controller(nh, frequency,
-                                             cmd_topic_platform,
-                                             state_topic_platform,
-                                             cmd_topic_arm,
-                                             topic_arm_pose_world,
-                                             topic_arm_twist_world,
-                                             topic_wrench_u_e,
-                                             topic_wrench_u_c,
-                                             state_topic_arm,
-                                             wrench_topic, 
-                                             wrench_control_topic,
-                                             laser_front_topic,
-                                             laser_rear_topic,
-                                             M_p, M_a, D, D_p, D_a, K, d_e,
-                                             workspace_limits, 
-                                             wrench_filter_factor,
-                                             force_dead_zone_thres,
-                                             torque_dead_zone_thres,
-                                             obs_distance_thres,
-                                             self_detect_thres,
-                                             dont_avoid_front);
+      cmd_topic_platform,
+      state_topic_platform,
+      cmd_topic_arm,
+      topic_arm_pose_world,
+      topic_arm_twist_world,
+      topic_wrench_u_e,
+      topic_wrench_u_c,
+      state_topic_arm,
+      wrench_topic,
+      wrench_control_topic,
+      topic_equilibrium,
+      laser_front_topic,
+      laser_rear_topic,
+      M_p, M_a, D, D_p, D_a, K, d_e,
+      workspace_limits,
+      wrench_filter_factor,
+      force_dead_zone_thres,
+      torque_dead_zone_thres,
+      obs_distance_thres,
+      self_detect_thres,
+      dont_avoid_front);
 
   admittance_controller.run();
 

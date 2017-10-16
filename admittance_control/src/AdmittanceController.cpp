@@ -12,6 +12,7 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
     std::string state_topic_arm,
     std::string wrench_topic,
     std::string wrench_control_topic,
+    std::string topic_equilibrium,
     std::string laser_front_topic,
     std::string laser_rear_topic,
     std::vector<double> M_p,
@@ -63,8 +64,8 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
                                   ros::TransportHints().reliable().tcpNoDelay());
 
 
-  sub_equilibrium_offset_ = nh_.subscribe("/eq_offset", 10,
-                                          &AdmittanceController::equilibrium_offset_callback, this,
+  sub_equilibrium_new_ = nh_.subscribe(topic_equilibrium, 10,
+                                          &AdmittanceController::equilibrium_callback, this,
                                           ros::TransportHints().reliable().tcpNoDelay());
 
 
@@ -99,7 +100,7 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
   equilibrium_orientation_.coeffs() << equilibrium_full.bottomRows(4) /
                                     equilibrium_full.bottomRows(4).norm();
 
-  equilibrium_offset_.setZero();
+  equilibrium_new_.setZero();
 
   // starting from a state that does not create movements on the robot
   arm_real_orientation_ = equilibrium_orientation_;
@@ -178,13 +179,42 @@ void AdmittanceController::run() {
 
 }
 
-void AdmittanceController::equilibrium_offset_callback(const geometry_msgs::PointPtr msg) {
+void AdmittanceController::equilibrium_callback(const geometry_msgs::PointPtr msg) {
 
-  equilibrium_offset_ << msg->x , msg->y, msg->z;
+  equilibrium_new_ << msg->x , msg->y, msg->z;
 
-  ROS_INFO_STREAM("offset" << equilibrium_offset_(0) << " "
-                  << equilibrium_offset_(1) << " "
-                  << equilibrium_offset_(2) );
+  bool equ_update = true;
+  if (equilibrium_new_(0) < workspace_limits_(0) || equilibrium_new_(0) > workspace_limits_(1)) {
+    ROS_WARN_STREAM_THROTTLE (1, "Desired equilibrium is out of workspace.  x = "
+                              << equilibrium_new_(0) << " not in [" << workspace_limits_(0) << " , "
+                              << workspace_limits_(1) << "]");
+    equ_update = false;
+  }
+
+  if (equilibrium_new_(1) < workspace_limits_(2) || equilibrium_new_(1) > workspace_limits_(3)) {
+    ROS_WARN_STREAM_THROTTLE (1, "Desired equilibrium is out of workspace.  y = "
+                              << equilibrium_new_(1) << " not in [" << workspace_limits_(2) << " , "
+                              << workspace_limits_(3) << "]");
+    equ_update = false;
+  }
+
+  if (equilibrium_new_(2) < workspace_limits_(4) || equilibrium_new_(0) > workspace_limits_(5)) {
+    ROS_WARN_STREAM_THROTTLE (1, "Desired equilibrium is out of workspace.  x = "
+                              << equilibrium_new_(2) << " not in [" << workspace_limits_(4) << " , "
+                              << workspace_limits_(5) << "]");
+    equ_update = false;
+  }
+
+  if (equ_update) {
+    equilibrium_position_ = equilibrium_new_;
+    ROS_INFO_STREAM_THROTTLE(2, "New eauiibrium at : " <<
+                             equilibrium_position_(0) << " " <<
+                             equilibrium_position_(1) << " " <<
+                             equilibrium_position_(2)   );
+  }
+
+
+
 }
 
 ///////////////////////////////////////////////////////////////
@@ -198,7 +228,7 @@ void AdmittanceController::compute_admittance() {
   Vector6d error;
 
   // Translation error w.r.t. desired equilibrium
-  error.topRows(3) = arm_real_position_ - (equilibrium_position_ + equilibrium_offset_);
+  error.topRows(3) = arm_real_position_ - equilibrium_position_;
 
   // Orientation error w.r.t. desired equilibriums
   if (equilibrium_orientation_.coeffs().dot(arm_real_orientation_.coeffs()) < 0.0) {

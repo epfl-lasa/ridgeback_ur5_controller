@@ -104,7 +104,7 @@ protected:
   ros::Subscriber sub_laser_rear_;
 
   // Subscriber for the offset of the attractor
-  ros::Subscriber sub_equilibrium_offset_;
+  ros::Subscriber sub_equilibrium_new_;
 
 
   // Publishers:
@@ -151,7 +151,7 @@ protected:
   Quaterniond equilibrium_orientation_;
 
   // receiving an offset from a topic
-  Vector3d equilibrium_offset_;
+  Vector3d equilibrium_new_;
 
 
 
@@ -264,7 +264,7 @@ protected:
 
   void send_commands_to_robot();
 
-  void equilibrium_offset_callback(const geometry_msgs::PointPtr msg);
+  void equilibrium_callback(const geometry_msgs::PointPtr msg);
 
 public:
   AdmittanceController(ros::NodeHandle &n, double frequency,
@@ -278,6 +278,7 @@ public:
                        std::string state_topic_arm,
                        std::string wrench_topic,
                        std::string wrench_control_topic,
+                       std::string topic_equilibrium,
                        std::string laser_front_topic,
                        std::string laser_rear_topic,
                        std::vector<double> M_p,

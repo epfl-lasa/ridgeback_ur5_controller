@@ -22,6 +22,9 @@
   <!-- An input wrench that can be used for control -->
   <arg name="WRENCH_CONTROL_TOPIC" default="/admittance_control/wrench_control" />
 
+  <arg name="TOPIC_EQUILIBRIUM" default="/admittance_control/equilibrium" />
+
+
   <!-- The received wrench by the FT-sensor and the controller will be published for dubugging/visualization -->
   <!-- They will be specified in ur5_arm_base_link -->
   <arg name="TOPIC_TWIST_U_E" default="/admittance_control/u_e"/>
@@ -56,6 +59,7 @@
   <param name="cmd_topic_platform" value="$(arg CMD_TOPIC_PLATFORM)"/>
   <param name="wrench_topic" value="$(arg WRENCH_TOPIC)"/>
   <param name="wrench_control_topic" value="$(arg WRENCH_CONTROL_TOPIC)"/>
+  <param name="topic_equilibrium" value="$(arg TOPIC_EQUILIBRIUM)"/>
   <param name="wrench_filter_factor" value="$(arg WRENCH_FILTER_FACTOR)"/>
   <param name="force_dead_zone_thres" value="$(arg FORCE_DEAD_ZONE_THRES)"/>
   <param name="torque_dead_zone_thres" value="$(arg TORQUE_DEAD_ZONE_THRES)"/>
