@@ -2,19 +2,19 @@
 
 AdmittanceController::AdmittanceController(ros::NodeHandle &n,
     double frequency,
-    std::string cmd_topic_platform,
-    std::string state_topic_platform,
-    std::string cmd_topic_arm,
+    std::string topic_platform_command,
+    std::string topic_platform_state,
+    std::string topic_arm_command,
     std::string topic_arm_pose_world,
     std::string topic_arm_twist_world,
-    std::string topic_wrench_u_e,
-    std::string topic_wrench_u_c,
-    std::string state_topic_arm,
-    std::string wrench_topic,
-    std::string wrench_control_topic,
+    std::string topic_external_wrench_arm_frame,
+    std::string topic_control_wrench_arm_frame,
+    std::string topic_arm_state,
+    std::string topic_external_wrench,
+    std::string topic_control_wrench,
     std::string topic_equilibrium,
-    std::string laser_front_topic,
-    std::string laser_rear_topic,
+    std::string topic_laser_front,
+    std::string topic_laser_rear,
     std::vector<double> M_p,
     std::vector<double> M_a,
     std::vector<double> D,
@@ -42,36 +42,36 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
 
 
   // Subscribers
-  sub_platform_state_ = nh_.subscribe(state_topic_platform, 5,
+  sub_platform_state_ = nh_.subscribe(topic_platform_state, 5,
                                       &AdmittanceController::state_platform_callback, this,
                                       ros::TransportHints().reliable().tcpNoDelay());
-  sub_arm_state_ = nh_.subscribe(state_topic_arm, 10,
+  sub_arm_state_ = nh_.subscribe(topic_arm_state, 10,
                                  &AdmittanceController::state_arm_callback, this,
                                  ros::TransportHints().reliable().tcpNoDelay());
 
-  sub_wrench_external_ = nh_.subscribe(wrench_topic, 5,
+  sub_wrench_external_ = nh_.subscribe(topic_external_wrench, 5,
                                        &AdmittanceController::wrench_callback, this,
                                        ros::TransportHints().reliable().tcpNoDelay());
-  sub_wrench_control_ = nh_.subscribe(wrench_control_topic, 5,
+  sub_wrench_control_ = nh_.subscribe(topic_control_wrench, 5,
                                       &AdmittanceController::wrench_control_callback, this,
                                       ros::TransportHints().reliable().tcpNoDelay());
 
-  sub_laser_front_ = nh_.subscribe(laser_front_topic, 1,
+  sub_laser_front_ = nh_.subscribe(topic_laser_front, 1,
                                    &AdmittanceController::laser_front_callback, this,
                                    ros::TransportHints().reliable().tcpNoDelay());
-  sub_laser_rear_ = nh_.subscribe(laser_rear_topic, 1,
+  sub_laser_rear_ = nh_.subscribe(topic_laser_rear, 1,
                                   &AdmittanceController::laser_rear_callback, this,
                                   ros::TransportHints().reliable().tcpNoDelay());
 
 
   sub_equilibrium_new_ = nh_.subscribe(topic_equilibrium, 10,
-                                          &AdmittanceController::equilibrium_callback, this,
-                                          ros::TransportHints().reliable().tcpNoDelay());
+                                       &AdmittanceController::equilibrium_callback, this,
+                                       ros::TransportHints().reliable().tcpNoDelay());
 
 
   // Publishers
-  pub_platform_cmd_ = nh_.advertise<geometry_msgs::Twist>(cmd_topic_platform, 5);
-  pub_arm_cmd_ = nh_.advertise<geometry_msgs::Twist>(cmd_topic_arm, 5);
+  pub_platform_cmd_ = nh_.advertise<geometry_msgs::Twist>(topic_platform_command, 5);
+  pub_arm_cmd_ = nh_.advertise<geometry_msgs::Twist>(topic_arm_command, 5);
 
   pub_ee_pose_world_ = nh_.advertise<geometry_msgs::PoseStamped>(
                          topic_arm_pose_world, 5);
@@ -79,9 +79,9 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
                           topic_arm_twist_world, 5);
 
   pub_wrench_external_ = nh_.advertise<geometry_msgs::WrenchStamped>(
-                           topic_wrench_u_e, 5);
+                           topic_external_wrench_arm_frame, 5);
   pub_wrench_control_ = nh_.advertise<geometry_msgs::WrenchStamped>(
-                          topic_wrench_u_c, 5);
+                          topic_control_wrench_arm_frame, 5);
 
   pub_obstacle_position_ = nh_.advertise<geometry_msgs::PointStamped>("obstacles", 5);
 
@@ -179,43 +179,7 @@ void AdmittanceController::run() {
 
 }
 
-void AdmittanceController::equilibrium_callback(const geometry_msgs::PointPtr msg) {
 
-  equilibrium_new_ << msg->x , msg->y, msg->z;
-
-  bool equ_update = true;
-  if (equilibrium_new_(0) < workspace_limits_(0) || equilibrium_new_(0) > workspace_limits_(1)) {
-    ROS_WARN_STREAM_THROTTLE (1, "Desired equilibrium is out of workspace.  x = "
-                              << equilibrium_new_(0) << " not in [" << workspace_limits_(0) << " , "
-                              << workspace_limits_(1) << "]");
-    equ_update = false;
-  }
-
-  if (equilibrium_new_(1) < workspace_limits_(2) || equilibrium_new_(1) > workspace_limits_(3)) {
-    ROS_WARN_STREAM_THROTTLE (1, "Desired equilibrium is out of workspace.  y = "
-                              << equilibrium_new_(1) << " not in [" << workspace_limits_(2) << " , "
-                              << workspace_limits_(3) << "]");
-    equ_update = false;
-  }
-
-  if (equilibrium_new_(2) < workspace_limits_(4) || equilibrium_new_(0) > workspace_limits_(5)) {
-    ROS_WARN_STREAM_THROTTLE (1, "Desired equilibrium is out of workspace.  x = "
-                              << equilibrium_new_(2) << " not in [" << workspace_limits_(4) << " , "
-                              << workspace_limits_(5) << "]");
-    equ_update = false;
-  }
-
-  if (equ_update) {
-    equilibrium_position_ = equilibrium_new_;
-    ROS_INFO_STREAM_THROTTLE(2, "New eauiibrium at : " <<
-                             equilibrium_position_(0) << " " <<
-                             equilibrium_position_(1) << " " <<
-                             equilibrium_position_(2)   );
-  }
-
-
-
-}
 
 ///////////////////////////////////////////////////////////////
 ///////////////////// Admittance Dynamics /////////////////////
@@ -235,28 +199,15 @@ void AdmittanceController::compute_admittance() {
     arm_real_orientation_.coeffs() << -arm_real_orientation_.coeffs();
   }
 
-  // ROS_INFO_STREAM("desired  :" << equilibrium_orientation_.coeffs());
-  // ROS_INFO_STREAM("real :" << arm_real_orientation_.coeffs());
-
-
-
   Eigen::Quaterniond quat_rot_err(arm_real_orientation_
                                   * equilibrium_orientation_.inverse());
   if (quat_rot_err.coeffs().norm() > 1e-3) {
     // Normalize error quaternion
-    quat_rot_err.coeffs() << quat_rot_err.coeffs() /
-                          quat_rot_err.coeffs().norm();
+    quat_rot_err.coeffs() << quat_rot_err.coeffs() / quat_rot_err.coeffs().norm();
   }
   Eigen::AngleAxisd err_arm_des_orient(quat_rot_err);
   error.bottomRows(3) << err_arm_des_orient.axis() *
                       err_arm_des_orient.angle();
-
-
-  // ROS_INFO_STREAM("quat_rot_err :" << equilibrium_orientation_.coeffs());
-  // ROS_INFO_STREAM("w : " << quat_rot_err.w());
-  // ROS_INFO_STREAM("vector : " << quat_rot_err.vec());
-  // ROS_INFO_STREAM("its norm : " << quat_rot_err.norm() );
-
 
 
   Vector6d coupling_wrench =  D_ * (arm_desired_twist_) + K_ * error;
@@ -266,29 +217,21 @@ void AdmittanceController::compute_admittance() {
   arm_desired_accelaration = M_a_.inverse() * ( - coupling_wrench - D_a_ * arm_desired_twist_
                              + wrench_external_ + wrench_control_);
 
-
-
   // limiting the accelaration for better stability and safety
   double p_acc_norm = (platform_desired_acceleration.segment(0, 3)).norm();
   double a_acc_norm = (arm_desired_accelaration.segment(0, 3)).norm();
 
   if (p_acc_norm > 2.0) {
-    ROS_WARN_STREAM_THROTTLE(1, "Admittance generates high platform accelaration! accleration norm: " << p_acc_norm);
+    ROS_WARN_STREAM_THROTTLE(1, "Admittance generates high platform accelaration!"
+                             << "accleration norm: " << p_acc_norm);
     platform_desired_acceleration.segment(0, 3) *= (2.0 / p_acc_norm);
   }
 
   if (a_acc_norm > 5.0) {
-    ROS_WARN_STREAM_THROTTLE(1, "Admittance generates high arm accelaration! accleration norm: " << a_acc_norm);
+    ROS_WARN_STREAM_THROTTLE(1, "Admittance generates high arm accelaration!"
+                             << "accleration norm: " << a_acc_norm);
     arm_desired_accelaration.segment(0, 3) *= (5.0 / a_acc_norm);
   }
-
-
-  // Admittance dynamics
-  // x_ddot_p = M_p_.inverse() * (- D_p_ * platform_desired_twist_
-  //                              + rotation_base_ * kin_constraints_ *
-  //                              (D_ * (arm_desired_twist_) + K_ * error));
-  // x_ddot_a = M_a_.inverse() * ( - (D_ + D_a_) * (arm_desired_twist_)
-  //                               - K_ * error + u_e_ + u_c_);
 
   // Integrate for velocity based interface
   ros::Duration duration = loop_rate_.expectedCycleTime();
@@ -370,7 +313,45 @@ void AdmittanceController::wrench_control_callback(
   }
 }
 
+void AdmittanceController::equilibrium_callback(const geometry_msgs::PointPtr msg) {
 
+  equilibrium_new_ << msg->x , msg->y, msg->z;
+
+  bool equ_update = true;
+  if (equilibrium_new_(0) < workspace_limits_(0) || equilibrium_new_(0) > workspace_limits_(1)) {
+    ROS_WARN_STREAM_THROTTLE (1, "Desired equilibrium is out of workspace.  x = "
+                              << equilibrium_new_(0) << " not in [" << workspace_limits_(0) << " , "
+                              << workspace_limits_(1) << "]");
+    equ_update = false;
+  }
+
+  if (equilibrium_new_(1) < workspace_limits_(2) || equilibrium_new_(1) > workspace_limits_(3)) {
+    ROS_WARN_STREAM_THROTTLE (1, "Desired equilibrium is out of workspace.  y = "
+                              << equilibrium_new_(1) << " not in [" << workspace_limits_(2) << " , "
+                              << workspace_limits_(3) << "]");
+    equ_update = false;
+  }
+
+  if (equilibrium_new_(2) < workspace_limits_(4) || equilibrium_new_(0) > workspace_limits_(5)) {
+    ROS_WARN_STREAM_THROTTLE (1, "Desired equilibrium is out of workspace.  x = "
+                              << equilibrium_new_(2) << " not in [" << workspace_limits_(4) << " , "
+                              << workspace_limits_(5) << "]");
+    equ_update = false;
+  }
+
+  if (equ_update) {
+    equilibrium_position_ = equilibrium_new_;
+    ROS_INFO_STREAM_THROTTLE(2, "New eauiibrium at : " <<
+                             equilibrium_position_(0) << " " <<
+                             equilibrium_position_(1) << " " <<
+                             equilibrium_position_(2)   );
+  }
+
+}
+
+///////////////////////////////////////////////////////////////
+//////////////////// COMMANDING THE ROBOT /////////////////////
+///////////////////////////////////////////////////////////////
 void AdmittanceController::send_commands_to_robot() {
 
   geometry_msgs::Twist platform_twist_cmd;
