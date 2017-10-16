@@ -47,6 +47,26 @@ $ catkin_make
 ```
 * you might need the source the bash file and compie again if the first compliation could not find some of in house dependencies.
 
+
+---
+
+
+## Running the controller
+
+
+To bring up the robot in simulation run
+```
+roslaunch cpr_bringup cpr_bringup.launch
+roslaunch admittance_control admittance_controller.launch
+```
+For the real robot launch on the CPR main PC run
+```
+roslaunch cpr_bringup cpr_bringup.launch sim:=false
+roslaunch admittance_control admittance_controller_real.launch
+```
+
+# Control Architecture
+
 ## Kinematics and transformations
 
 Here is a short list of important frames and their usage.
@@ -62,7 +82,7 @@ Here is a short list of important frames and their usage.
 
 
 
-## Control Architecture
+## Adamittance dynamics
 The following figure shows the controller architecture for the admittance control on the robot.
 
 ![alt text](fig_control_schematics.png "Control architecture")
@@ -91,6 +111,7 @@ The external is initially measured by the force/torque sensor in its own frame r
 ### Higher-level control (Motion planning )
 Through a higher level controller, the position of the equilibrium can be can be changed to acheive a desired behavior. Also, F<sub>c</sub> can be used for control purposes; e.g., to compensate for the mass of an object carried by the arm.
 
+[![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/7BjHhV-BkwE/0.jpg)](https://youtu.be/7BjHhV-BkwE)
 
 
 
@@ -99,19 +120,6 @@ Through a higher level controller, the position of the equilibrium can be can be
 
 
 
----
 
 
-## Running the controller
 
-
-To bring up the robot in simulation run
-```
-roslaunch cpr_bringup cpr_bringup.launch
-roslaunch admittance_control admittance_controller.launch
-```
-For the real robot launch on the CPR main PC run
-```
-roslaunch cpr_bringup cpr_bringup.launch sim:=false
-roslaunch admittance_control admittance_controller_real.launch
-```
