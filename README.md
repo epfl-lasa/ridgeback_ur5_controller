@@ -47,6 +47,13 @@ $ catkin_make
 ```
 * you might need the source the bash file and compie again if the first compliation could not find some of in house dependencies.
 
+## Control Architecture
+
+<object data="http://yoursite.com/the.pdf" type="application/pdf" width="700px" height="700px">
+    <embed src="fig_control_schematics.pdf">
+    </embed>
+</object>
+
 
 
 ---
