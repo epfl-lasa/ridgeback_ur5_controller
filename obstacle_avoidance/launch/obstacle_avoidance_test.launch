@@ -1,0 +1,35 @@
+<?xml version="1.0" ?>
+<launch>
+  <!-- Launch file for the admittance controller -->
+
+
+
+  <!-- Communication with the platfrom, other controllers, and commanding velocities to platform--> 
+  <arg name="TOPIC_PLATFORM_STATE"           default="/odometry/filtered"                     />
+  <arg name="TOPIC_PLATFORM_DESIRED_TWIST"   default="/obstacle_avoidance/desired_twist_test" />
+  <arg name="TOPIC_PLATFORM_COMMAND"         default="/cmd_vel"                               />
+
+
+  <!-- Laser scans and navigation settings -->
+  <arg name="TOPIC_LASER_FRONT"  default="/front/scan" />
+  <arg name="TOPIC_LASER_REAR"   default="/rear/scan"  />
+  <arg name="OBS_DISTANCE_THRES" default="0.3"         />
+  <arg name="SELF_DETECT_THRES"  default="0.02"        />
+  <arg name="DONT_AVOID_FRONT"   default="true"        />
+
+
+  <!-- Converting args into params -->
+  <param name="topic_platform_state"             value="$(arg TOPIC_PLATFORM_STATE)"           />
+  <param name="topic_platform_desired_twist"     value="$(arg TOPIC_PLATFORM_DESIRED_TWIST)"   />
+  <param name="topic_platform_command"           value="$(arg TOPIC_PLATFORM_COMMAND)"         />
+  <param name="topic_laser_front"                value="$(arg TOPIC_LASER_FRONT)"              />
+  <param name="topic_laser_rear"                 value="$(arg TOPIC_LASER_REAR)"               />
+  <param name="obs_distance_thres"               value="$(arg OBS_DISTANCE_THRES)"             />
+  <param name="self_detect_thres"                value="$(arg SELF_DETECT_THRES)"              />
+  <param name="dont_avoid_front"                 value="$(arg DONT_AVOID_FRONT)"               />
+
+  <node name="obstacle_avoidance" pkg="obstacle_avoidance"   type="obstacle_avoidance_node" output="screen"/>
+
+  <node name="rqt_ez_publisher" pkg="rqt_ez_publisher" type="rqt_ez_publisher" />
+
+</launch>
