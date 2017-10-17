@@ -38,15 +38,7 @@
 
   <!-- Loading the admittance parameters from a yaml file -->
   <arg name="ADMITTANCE_PARAMS_FILE" default="$(find admittance_control)/config/admittance_params_real.yaml" />
-  
-  <!-- Laser scans and navigation settings -->
-  <arg name="TOPIC_LASER_FRONT"  default="/front/scan" />
-  <arg name="TOPIC_LASER_REAR"   default="/rear/scan"  />
-  <arg name="OBS_DISTANCE_THRES" default="0.3"         />
-  <arg name="SELF_DETECT_THRES"  default="0.02"        />
-  <arg name="DONT_AVOID_FRONT"   default="true"        />
-
-
+ 
   <!-- Converting args into params -->
   <param name="topic_arm_state"                  value="$(arg TOPIC_ARM_STATE)"                />
   <param name="topic_arm_command"                value="$(arg TOPIC_ARM_COMMAND)"              />
@@ -59,15 +51,12 @@
   <param name="topic_control_external_arm_frame" value="$(arg TOPIC_CONTROL_WRENCH_ARM_FRAME)" />
   <param name="topic_arm_pose_world"             value="$(arg TOPIC_ARM_POSE_WORLD)"           />
   <param name="topic_arm_twist_world"            value="$(arg TOPIC_ARM_TWIST_WORLD)"          />
-  <param name="topic_laser_front"                value="$(arg TOPIC_LASER_FRONT)"              />
-  <param name="topic_laser_rear"                 value="$(arg TOPIC_LASER_REAR)"               />
+
 
   <param name="wrench_filter_factor"             value="$(arg WRENCH_FILTER_FACTOR)"           />
   <param name="force_dead_zone_thres"            value="$(arg FORCE_DEAD_ZONE_THRES)"          />
   <param name="torque_dead_zone_thres"           value="$(arg TORQUE_DEAD_ZONE_THRES)"         />
-  <param name="obs_distance_thres"               value="$(arg OBS_DISTANCE_THRES)"             />
-  <param name="self_detect_thres"                value="$(arg SELF_DETECT_THRES)"              />
-  <param name="dont_avoid_front"                 value="$(arg DONT_AVOID_FRONT)"               />
+
 
   <rosparam file="$(arg ADMITTANCE_PARAMS_FILE)" command="load"/>
 

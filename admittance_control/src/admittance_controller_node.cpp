@@ -20,8 +20,6 @@ int main(int argc, char **argv)
   std::string topic_control_external_arm_frame;
   std::string topic_arm_pose_world;
   std::string topic_arm_twist_world;
-  std::string topic_laser_front;
-  std::string topic_laser_rear;
 
   std::vector<double> M_p;
   std::vector<double> M_a;
@@ -35,10 +33,6 @@ int main(int argc, char **argv)
   double wrench_filter_factor;
   double force_dead_zone_thres;
   double torque_dead_zone_thres;
-  double obs_distance_thres;
-  double self_detect_thres;
-
-  bool dont_avoid_front;
 
 
 
@@ -99,17 +93,6 @@ int main(int argc, char **argv)
     ROS_ERROR("Couldn't retrieve the topic name for the EE twist in the world frame.");
     return -1;
   }
-
-  if (!nh.getParam("topic_laser_front", topic_laser_front)) {
-    ROS_ERROR("Couldn't retrieve the topic name for the front laser. ");
-    return -1;
-  }
-
-  if (!nh.getParam("topic_laser_rear", topic_laser_rear)) {
-    ROS_ERROR("Couldn't retrieve the topic name for the rear laser. ");
-    return -1;
-  }
-
 
 
   // ADMITTANCE PARAMETERS
@@ -174,20 +157,6 @@ int main(int argc, char **argv)
     return -1;
   }
 
-  if (!nh.getParam("obs_distance_thres", obs_distance_thres)) {
-    ROS_ERROR("Couldn't retrieve the desired obs_distance_thres. ");
-    return -1;
-  }
-
-  if (!nh.getParam("self_detect_thres", self_detect_thres)) {
-    ROS_ERROR("Couldn't retrieve the desired self_detect_thres. ");
-    return -1;
-  }
-
-  if (!nh.getParam("dont_avoid_front", dont_avoid_front)) {
-    ROS_ERROR("Couldn't retrieve the dont_avoid_front flag. ");
-    return -1;
-  }
 
 
   // Constructing the controller
@@ -205,16 +174,11 @@ int main(int argc, char **argv)
     topic_external_wrench,
     topic_control_wrench,
     topic_equilibrium,
-    topic_laser_front,
-    topic_laser_rear,
     M_p, M_a, D, D_p, D_a, K, d_e,
     workspace_limits,
     wrench_filter_factor,
     force_dead_zone_thres,
-    torque_dead_zone_thres,
-    obs_distance_thres,
-    self_detect_thres,
-    dont_avoid_front);
+    torque_dead_zone_thres);
 
   // Running the controller
   admittance_controller.run();

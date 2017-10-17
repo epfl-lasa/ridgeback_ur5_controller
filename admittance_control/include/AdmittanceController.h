@@ -98,11 +98,6 @@ protected:
   ros::Subscriber sub_wrench_external_;
   // Subscriber for the ft sensor at the endeffector
   ros::Subscriber sub_wrench_control_;
-  // Subscriber for the front laser
-  ros::Subscriber sub_laser_front_;
-  // Subscriber for the rear laser
-  ros::Subscriber sub_laser_rear_;
-
   // Subscriber for the offset of the attractor
   ros::Subscriber sub_equilibrium_new_;
 
@@ -121,8 +116,6 @@ protected:
   ros::Publisher pub_wrench_external_;
   // Publisher for the control wrench specified in the world frame
   ros::Publisher pub_wrench_control_;
-  // Publisher for the obstacle vector
-  ros::Publisher pub_obstacle_position_;
 
 
   // INPUT SIGNAL
@@ -187,37 +180,11 @@ protected:
 
 
 
-  // OBSTACLE AVOIDANCE:
-  // Vector defining the position of an obstacle in the base_link
-  // If no obstacle is detected then it is set to 0
-  Eigen::Vector3d obs_vector_;
-
-  // The robot assumes that there is one single obstacle and all measurements
-  // between self_detect_thres_ and obs_distance_thres_ are considered parts of the
-  // same obstacle
-  // Maximum distance threshold to consider an obstacle
-  double obs_distance_thres_;
-  // Threshold starting at the end of the platform to consider an obstacle
-  // to avoid self detections like cables
-  double self_detect_thres_;
-  // Flag indicating if the front of the platform should be avoided too or not.
-  // For human-robot interaction settings this might be desireable if the robot
-  // is always carrying something with the robot.
-  bool dont_avoid_front_;
-
-
-  // Point cloud from the laser scans
-  laser_geometry::LaserProjection projector_;
-  sensor_msgs::PointCloud laser_front_cloud_;
-  sensor_msgs::PointCloud laser_rear_cloud_;
-
   // TF:
   // Listeners
   tf::TransformListener listener_ft_;
   tf::TransformListener listener_control_;
   tf::TransformListener listener_arm_;
-  tf::TransformListener listener_laser_front_;
-  tf::TransformListener listener_laser_rear_;
 
   // Guards
   bool ft_arm_ready_;
@@ -229,24 +196,16 @@ protected:
   void wait_for_transformations();
 
   // Control
-  // void compute_admittance(Vector6d & desired_twist_platform,
-  //                    Vector6d & desired_vel_arm, ros::Duration cycle_time);
   void compute_admittance();
 
-  void avoid_obstacles(Vector6d &desired_twist_platform);
 
-  // Obstacle avoidance
-  Vector3d get_closest_point_on_platform(Vector3d obstacle);
-  void update_obstacles();
-  bool isObstacleMeasurement(Vector3d &measurement);
 
   // Callbacks
   void state_platform_callback(const nav_msgs::OdometryConstPtr msg);
   void state_arm_callback(const cartesian_state_msgs::PoseTwistConstPtr msg);
   void wrench_callback(const geometry_msgs::WrenchStampedConstPtr msg);
   void wrench_control_callback(const geometry_msgs::WrenchStampedConstPtr msg);
-  void laser_front_callback(const sensor_msgs::LaserScanPtr msg);
-  void laser_rear_callback(const sensor_msgs::LaserScanPtr msg);
+
 
   // Util
   bool get_rotation_matrix(Matrix6d & rotation_matrix,
@@ -279,8 +238,6 @@ public:
                        std::string wrench_topic,
                        std::string wrench_control_topic,
                        std::string topic_equilibrium,
-                       std::string laser_front_topic,
-                       std::string laser_rear_topic,
                        std::vector<double> M_p,
                        std::vector<double> M_a,
                        std::vector<double> D,
@@ -291,10 +248,7 @@ public:
                        std::vector<double> workspace_limits,
                        double wrench_filter_factor,
                        double force_dead_zone_thres,
-                       double torque_dead_zone_thres,
-                       double obs_distance_thres,
-                       double self_detect_thres,
-                       bool dont_avoid_front);
+                       double torque_dead_zone_thres);
   void run();
 };
 

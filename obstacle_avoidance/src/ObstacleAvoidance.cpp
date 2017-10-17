@@ -277,6 +277,8 @@ void ObstacleAvoidance::update_obstacles() {
   pub_obstacle_position_.publish(msg_point);
 
 
+
+
 }
 
 bool ObstacleAvoidance::isObstacleMeasurement(Vector3d &measurement) {

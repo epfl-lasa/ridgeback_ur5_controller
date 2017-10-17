@@ -13,8 +13,6 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
     std::string topic_external_wrench,
     std::string topic_control_wrench,
     std::string topic_equilibrium,
-    std::string topic_laser_front,
-    std::string topic_laser_rear,
     std::vector<double> M_p,
     std::vector<double> M_a,
     std::vector<double> D,
@@ -25,20 +23,14 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
     std::vector<double> workspace_limits,
     double wrench_filter_factor,
     double force_dead_zone_thres,
-    double torque_dead_zone_thres,
-    double obs_distance_thres,
-    double self_detect_thres,
-    bool dont_avoid_front) :
+    double torque_dead_zone_thres) :
   nh_(n), loop_rate_(frequency),
   wrench_filter_factor_(wrench_filter_factor),
   force_dead_zone_thres_(force_dead_zone_thres),
   torque_dead_zone_thres_(torque_dead_zone_thres),
   M_p_(M_p.data()), M_a_(M_a.data()), D_(D.data()),
   D_p_(D_p.data()), D_a_(D_a.data()), K_(K.data()),
-  workspace_limits_(workspace_limits.data()),
-  obs_distance_thres_(obs_distance_thres),
-  self_detect_thres_(self_detect_thres),
-  dont_avoid_front_(dont_avoid_front) {
+  workspace_limits_(workspace_limits.data()) {
 
 
   // Subscribers
@@ -55,14 +47,6 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
   sub_wrench_control_ = nh_.subscribe(topic_control_wrench, 5,
                                       &AdmittanceController::wrench_control_callback, this,
                                       ros::TransportHints().reliable().tcpNoDelay());
-
-  sub_laser_front_ = nh_.subscribe(topic_laser_front, 1,
-                                   &AdmittanceController::laser_front_callback, this,
-                                   ros::TransportHints().reliable().tcpNoDelay());
-  sub_laser_rear_ = nh_.subscribe(topic_laser_rear, 1,
-                                  &AdmittanceController::laser_rear_callback, this,
-                                  ros::TransportHints().reliable().tcpNoDelay());
-
 
   sub_equilibrium_new_ = nh_.subscribe(topic_equilibrium, 10,
                                        &AdmittanceController::equilibrium_callback, this,
@@ -82,9 +66,6 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
                            topic_external_wrench_arm_frame, 5);
   pub_wrench_control_ = nh_.advertise<geometry_msgs::WrenchStamped>(
                           topic_control_wrench_arm_frame, 5);
-
-  pub_obstacle_position_ = nh_.advertise<geometry_msgs::PointStamped>("obstacles", 5);
-
 
   // initializing the class variables
   wrench_external_.setZero();
@@ -125,9 +106,6 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
                                         0, 0, equilibrium_position_(1),
                                         0, 0, -equilibrium_position_(0),
                                         0, 0, 0;
-  obs_vector_.setZero();
-  laser_front_cloud_.points.resize(0);
-  laser_rear_cloud_.points.resize(0);
 
 
   ft_arm_ready_ = false;
@@ -152,16 +130,10 @@ void AdmittanceController::run() {
 
   while (nh_.ok()) {
     // Admittance Dynamics computation
-    // compute_admittance(desired_twist_platform, desired_twist_arm,
-    //                    loop_rate_.expectedCycleTime());
     compute_admittance();
 
     // limit the the movement of the arm to the permitted workspace
     limit_to_workspace();
-
-    // Obstacle avoidance for the platform
-    // update_obstacles();
-    // avoid_obstacles(platform_desired_twist_);
 
     // Copy commands to messages
     send_commands_to_robot();
@@ -601,139 +573,5 @@ void AdmittanceController::publish_debuggings_signals() {
   msg_wrench.wrench.torque.z = wrench_control_(5);
   pub_wrench_control_.publish(msg_wrench);
 
-
-  geometry_msgs::PointStamped msg_point;
-
-  msg_point.header.stamp = ros::Time::now();
-  msg_point.header.frame_id = "base_link";
-  msg_point.point.x = obs_vector_(0);
-  msg_point.point.y = obs_vector_(1);
-  msg_point.point.z = obs_vector_(2);
-  pub_obstacle_position_.publish(msg_point);
-
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-//////////////////////////////////////////////////////////////////
-/// Obstacale avoidance which need to be moved to another node ///
-//////////////////////////////////////////////////////////////////
-
-void AdmittanceController::laser_front_callback(
-  const sensor_msgs::LaserScanPtr msg) {
-  listener_laser_front_.waitForTransform("/base_link", msg->header.frame_id,
-                                         msg->header.stamp, ros::Duration(1.0));
-  if (base_world_ready_) {
-    projector_.transformLaserScanToPointCloud("base_link", *msg,
-        laser_front_cloud_,
-        listener_laser_front_, -1.0,
-        laser_geometry::channel_option::Intensity);
-  }
-}
-
-void AdmittanceController::laser_rear_callback(
-  const sensor_msgs::LaserScanPtr msg) {
-  listener_laser_rear_.waitForTransform("/base_link", msg->header.frame_id,
-                                        msg->header.stamp, ros::Duration(1.0));
-  if (base_world_ready_) {
-    projector_.transformLaserScanToPointCloud("base_link", *msg,
-        laser_rear_cloud_,
-        listener_laser_rear_, -1.0,
-        laser_geometry::channel_option::Intensity);
-  }
-}
-
-//////////////////////////
-/// OBSTACLE AVOIDANCE ///
-//////////////////////////
-void AdmittanceController::avoid_obstacles(Vector6d &desired_twist_platform) {
-  // Assumption: if obs_vector = (0,0,0) there is no obstacle
-  double hard_threshold = obs_distance_thres_ / 2.0;
-  if (obs_vector_.norm() > 0.01) {
-    Vector3d closest_point = get_closest_point_on_platform(obs_vector_);
-    Vector3d obs_closest_point_frame = obs_vector_ - closest_point;
-    obs_closest_point_frame(2) = 0.0;
-    // If there is a component of the velocity driving the platform to the
-    // obstacle ...
-    if (desired_twist_platform.topRows(3).dot(obs_closest_point_frame) > 0.0) {
-      // ... remove it lineary until fully removed at hard_threshold
-      double factor = (1.0 - ((obs_closest_point_frame.norm()
-                               - (obs_distance_thres_ - hard_threshold))
-                              / hard_threshold));
-      factor = std::min(std::max(factor, 0.0), 1.0);
-      desired_twist_platform.topRows(3) = desired_twist_platform.topRows(3)
-                                          - factor *
-                                          (desired_twist_platform.topRows(3).dot(obs_closest_point_frame)
-                                           * obs_closest_point_frame / obs_closest_point_frame.squaredNorm());
-    }
-  }
-}
-
-Vector3d AdmittanceController::get_closest_point_on_platform(Vector3d obstacle) {
-  Vector3d closest_point;
-  // The dimensions of the ridgeback are 0.96 m x 0.793 m and
-  // base_link is placed in the middle
-  closest_point(0) = ((obstacle(0) > 0) - (obstacle(0) < 0)) //sign
-                     * std::min(fabs(obstacle(0)), 0.48);
-  closest_point(1) = ((obstacle(1) > 0) - (obstacle(1) < 0)) //sign
-                     * std::min(fabs(obstacle(1)), 0.4);
-  closest_point(2) = obstacle(2);
-
-  return closest_point;
-}
-
-void AdmittanceController::update_obstacles() {
-  Eigen::Vector3d sum_vectors;
-  int n_vectors = 0;
-  sum_vectors.setZero();
-
-  for (unsigned int i = 0 ; i < laser_front_cloud_.points.size() ; i ++) {
-    Eigen::Vector3d cur_vector_front;
-    cur_vector_front << laser_front_cloud_.points.at(i).x,
-                     laser_front_cloud_.points.at(i).y,
-                     laser_front_cloud_.points.at(i).z;
-
-    if (isObstacleMeasurement(cur_vector_front)) {
-      sum_vectors = sum_vectors + cur_vector_front;
-      n_vectors++;
-    }
-  }
-  for (unsigned int i = 0 ; i < laser_rear_cloud_.points.size() ; i ++) {
-    Eigen::Vector3d cur_vector_rear;
-    cur_vector_rear << laser_rear_cloud_.points.at(i).x,
-                    laser_rear_cloud_.points.at(i).y,
-                    laser_rear_cloud_.points.at(i).z;
-
-    if (isObstacleMeasurement(cur_vector_rear)) {
-      sum_vectors = sum_vectors + cur_vector_rear;
-      n_vectors++;
-    }
-  }
-  if (n_vectors > 0) {
-    obs_vector_ = sum_vectors / n_vectors;
-  } else {
-    obs_vector_.setZero();
-  }
-}
-
-bool AdmittanceController::isObstacleMeasurement(Vector3d &measurement) {
-  // Consider only measurements that are between self_detect_thres_ and
-  // obs_distance_thres_.
-  // The dimensions of the ridgeback are 0.96 m x 0.793 m and
-  // base_link is placed in the middle
-  return (std::abs(measurement(0)) < (0.48 + obs_distance_thres_) &&
-          std::abs(measurement(1)) < (0.4 + obs_distance_thres_)) &&
-         (std::abs(measurement(0)) > (0.48 + self_detect_thres_) ||
-          std::abs(measurement(1)) > (0.4 + self_detect_thres_)) &&
-         (!dont_avoid_front_ || measurement(0) < 0.48);
-}
