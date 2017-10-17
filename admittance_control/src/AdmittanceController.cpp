@@ -21,6 +21,10 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
     std::vector<double> K,
     std::vector<double> d_e,
     std::vector<double> workspace_limits,
+    double arm_max_vel,
+    double arm_max_acc,
+    double platform_max_vel,
+    double platform_max_acc,
     double wrench_filter_factor,
     double force_dead_zone_thres,
     double torque_dead_zone_thres) :
@@ -30,7 +34,11 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
   torque_dead_zone_thres_(torque_dead_zone_thres),
   M_p_(M_p.data()), M_a_(M_a.data()), D_(D.data()),
   D_p_(D_p.data()), D_a_(D_a.data()), K_(K.data()),
-  workspace_limits_(workspace_limits.data()) {
+  workspace_limits_(workspace_limits.data()),
+  arm_max_vel_(arm_max_vel),
+  arm_max_acc_(arm_max_acc),
+  platform_max_vel_(platform_max_vel),
+  platform_max_acc_(platform_max_acc) {
 
 
   // Subscribers
@@ -67,6 +75,10 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
   pub_wrench_control_ = nh_.advertise<geometry_msgs::WrenchStamped>(
                           topic_control_wrench_arm_frame, 5);
 
+  ROS_INFO_STREAM("Arm max vel:" << arm_max_vel_ << " max acc:" << arm_max_acc_);
+  ROS_INFO_STREAM("Platform max vel:" << platform_max_vel_ << " max acc:" << platform_max_acc_);
+
+
   // initializing the class variables
   wrench_external_.setZero();
   wrench_control_.setZero();
@@ -96,6 +108,9 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
     loop_rate_.sleep();
   }
 
+  // Init integrator
+  arm_desired_twist_.setZero();
+  platform_desired_twist_.setZero();
 
   // Kinematic constraints between base and arm at the equilibrium
   kin_constraints_.setZero();
@@ -122,11 +137,6 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
 void AdmittanceController::run() {
 
   ROS_INFO("Running the admittance control loop .................");
-
-  // Init integrator
-  arm_desired_twist_.setZero();
-  platform_desired_twist_.setZero();
-
 
   while (nh_.ok()) {
     // Admittance Dynamics computation
@@ -193,16 +203,16 @@ void AdmittanceController::compute_admittance() {
   double p_acc_norm = (platform_desired_acceleration.segment(0, 3)).norm();
   double a_acc_norm = (arm_desired_accelaration.segment(0, 3)).norm();
 
-  if (p_acc_norm > 2.0) {
+  if (p_acc_norm > platform_max_acc_) {
     ROS_WARN_STREAM_THROTTLE(1, "Admittance generates high platform accelaration!"
-                             << "accleration norm: " << p_acc_norm);
-    platform_desired_acceleration.segment(0, 3) *= (2.0 / p_acc_norm);
+                             << " norm: " << p_acc_norm);
+    platform_desired_acceleration.segment(0, 3) *= (platform_max_acc_ / p_acc_norm);
   }
 
-  if (a_acc_norm > 5.0) {
+  if (a_acc_norm > arm_max_acc_) {
     ROS_WARN_STREAM_THROTTLE(1, "Admittance generates high arm accelaration!"
-                             << "accleration norm: " << a_acc_norm);
-    arm_desired_accelaration.segment(0, 3) *= (5.0 / a_acc_norm);
+                             << " norm: " << a_acc_norm);
+    arm_desired_accelaration.segment(0, 3) *= (arm_max_acc_ / a_acc_norm);
   }
 
   // Integrate for velocity based interface
@@ -467,7 +477,7 @@ bool AdmittanceController::get_rotation_matrix(Matrix6d & rotation_matrix,
   }
   catch (tf::TransformException ex) {
     rotation_matrix.setZero();
-    ROS_WARN_STREAM("Waiting for TF from: " << from_frame << " to: " << to_frame );
+    ROS_WARN_STREAM_THROTTLE(1,"Waiting for TF from: " << from_frame << " to: " << to_frame );
     return false;
   }
 
@@ -527,7 +537,7 @@ void AdmittanceController::publish_arm_state_in_world() {
       ee_pose_world_(6) = transform.getRotation().w();
     }
     catch (tf::TransformException ex) {
-      ROS_WARN("Couldn't lookup for ee to world transform...");
+      ROS_WARN_THROTTLE(1,"Couldn't lookup for ee to world transform...");
       ee_pose_world_.setZero();
       ee_pose_world_(6) = 1; // quat.w = 1
     }

@@ -155,6 +155,10 @@ protected:
 
   // limiting the workspace of the arm
   Vector6d workspace_limits_;
+  double arm_max_vel_;
+  double arm_max_acc_;
+  double platform_max_vel_;
+  double platform_max_acc_;
 
 
   // STATE VARIABLES:
@@ -246,6 +250,10 @@ public:
                        std::vector<double> K,
                        std::vector<double> d_e,
                        std::vector<double> workspace_limits,
+                       double arm_max_vel,
+                       double arm_max_acc,
+                       double platform_max_vel,
+                       double platform_max_acc,
                        double wrench_filter_factor,
                        double force_dead_zone_thres,
                        double torque_dead_zone_thres);

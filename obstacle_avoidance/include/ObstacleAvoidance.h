@@ -54,6 +54,10 @@ protected:
   // Input signal
   Vector6d platform_desired_twist_;
 
+  // used as the input of the filter
+  Vector6d twist_target_;
+
+
   // OUTPUT COMMANDS
   Vector6d platform_desired_twist_modified_;
 

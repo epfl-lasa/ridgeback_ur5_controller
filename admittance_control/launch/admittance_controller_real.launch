@@ -2,6 +2,13 @@
 <launch>
   <!-- Launch file for the admittance controller -->
 
+  <!-- Main settings -->
+  <arg name="FLAG_obstacle_avoidance" default="true"/>
+
+
+
+  <!-- TOPICS FROM THE LOWER-LEVE CONTROLLER -->
+
   <!-- Communication with the arm, reading the state of the arm and commanding velocities -->
   <arg name="TOPIC_ARM_STATE"   default="/ur5/ur5_cartesian_velocity_controller_sim/ee_state"         />
   <arg name="TOPIC_ARM_COMMAND" default="/ur5/ur5_cartesian_velocity_controller_sim/command_cart_vel" />
@@ -9,6 +16,10 @@
   <!-- Communication with the platfrom, reading the state of the arm and commanding velocities --> 
   <arg name="TOPIC_PLATFORM_STATE"   default="/odometry/filtered" />
   <arg name="TOPIC_PLATFORM_COMMAND" default="/cmd_vel"           />
+
+
+
+  <!-- TOPICS AND SETTINGS FOR ADMITTANCE CONTROLLER -->
 
   <!-- Communication with the Force/Torque sensor, reading the force/torque -->
   <!-- The wrench is specified in robotiq_force_torque_frame_id -->
@@ -35,32 +46,64 @@
 
 
 
+  <!-- Different wiring in case of running the obstacle avoidance -->
+  <arg if="$(arg FLAG_obstacle_avoidance)" 
+      name="TOPIC_PLATFORM_DESIRED_TWIST"   default="/admittance_control/platform_desired_twist" />
+  <arg unless="$(arg FLAG_obstacle_avoidance)" 
+      name="TOPIC_PLATFORM_DESIRED_TWIST"   default="$(arg TOPIC_PLATFORM_COMMAND)"  />
+
 
   <!-- Loading the admittance parameters from a yaml file -->
   <arg name="ADMITTANCE_PARAMS_FILE" default="$(find admittance_control)/config/admittance_params_real.yaml" />
  
-  <!-- Converting args into params -->
-  <param name="topic_arm_state"                  value="$(arg TOPIC_ARM_STATE)"                />
-  <param name="topic_arm_command"                value="$(arg TOPIC_ARM_COMMAND)"              />
-  <param name="topic_platform_state"             value="$(arg TOPIC_PLATFORM_STATE)"           />
-  <param name="topic_platform_command"           value="$(arg TOPIC_PLATFORM_COMMAND)"         />
-  <param name="topic_external_wrench"            value="$(arg TOPIC_EXTERNAL_WRENCH)"          />
-  <param name="topic_control_wrench"             value="$(arg TOPIC_CONTROL_WRENCH)"           />
-  <param name="topic_equilibrium"                value="$(arg TOPIC_EQUILIBRIUM)"              />
-  <param name="topic_external_wrench_arm_frame"  value="$(arg TOPIC_EXTERNAL_WRENCH_ARM_FRAME)"/>
-  <param name="topic_control_external_arm_frame" value="$(arg TOPIC_CONTROL_WRENCH_ARM_FRAME)" />
-  <param name="topic_arm_pose_world"             value="$(arg TOPIC_ARM_POSE_WORLD)"           />
-  <param name="topic_arm_twist_world"            value="$(arg TOPIC_ARM_TWIST_WORLD)"          />
+  <group ns="admittance_control">
+    <!-- Converting args into params -->
+    <param name="topic_arm_state"                  value="$(arg TOPIC_ARM_STATE)"                />
+    <param name="topic_arm_command"                value="$(arg TOPIC_ARM_COMMAND)"              />
+    <param name="topic_platform_state"             value="$(arg TOPIC_PLATFORM_STATE)"           />
+    <param name="topic_platform_command"           value="$(arg TOPIC_PLATFORM_DESIRED_TWIST)"   />
+    <param name="topic_external_wrench"            value="$(arg TOPIC_EXTERNAL_WRENCH)"          />
+    <param name="topic_control_wrench"             value="$(arg TOPIC_CONTROL_WRENCH)"           />
+    <param name="topic_equilibrium"                value="$(arg TOPIC_EQUILIBRIUM)"              />
+    <param name="topic_external_wrench_arm_frame"  value="$(arg TOPIC_EXTERNAL_WRENCH_ARM_FRAME)"/>
+    <param name="topic_control_external_arm_frame" value="$(arg TOPIC_CONTROL_WRENCH_ARM_FRAME)" />
+    <param name="topic_arm_pose_world"             value="$(arg TOPIC_ARM_POSE_WORLD)"           />
+    <param name="topic_arm_twist_world"            value="$(arg TOPIC_ARM_TWIST_WORLD)"          />
+    <param name="wrench_filter_factor"             value="$(arg WRENCH_FILTER_FACTOR)"           />
+    <param name="force_dead_zone_thres"            value="$(arg FORCE_DEAD_ZONE_THRES)"          />
+    <param name="torque_dead_zone_thres"           value="$(arg TORQUE_DEAD_ZONE_THRES)"         />
+
+    <rosparam file="$(arg ADMITTANCE_PARAMS_FILE)" command="load"/>
+
+    <node name="admittance_controller" pkg="admittance_control" 
+    type="admittance_controller_node" output="screen"/>
+
+</group>
 
 
-  <param name="wrench_filter_factor"             value="$(arg WRENCH_FILTER_FACTOR)"           />
-  <param name="force_dead_zone_thres"            value="$(arg FORCE_DEAD_ZONE_THRES)"          />
-  <param name="torque_dead_zone_thres"           value="$(arg TORQUE_DEAD_ZONE_THRES)"         />
+<group if="$(arg FLAG_obstacle_avoidance)">
+      <!-- Laser scans and navigation settings -->
+  <arg name="TOPIC_LASER_FRONT"  default="/front/scan" />
+  <arg name="TOPIC_LASER_REAR"   default="/rear/scan"  />
+  <arg name="OBS_DISTANCE_THRES" default="0.3"         />
+  <arg name="SELF_DETECT_THRES"  default="0.02"        />
+  <arg name="DONT_AVOID_FRONT"   default="true"        />
 
+  <group  ns="obstacle_avoidance">
+    <!-- Converting args into params -->
+    <param name="topic_platform_state"             value="$(arg TOPIC_PLATFORM_STATE)"           />
+    <param name="topic_platform_desired_twist"     value="$(arg TOPIC_PLATFORM_DESIRED_TWIST)"   />
+    <param name="topic_platform_command"           value="$(arg TOPIC_PLATFORM_COMMAND)"         />
+    <param name="topic_laser_front"                value="$(arg TOPIC_LASER_FRONT)"              />
+    <param name="topic_laser_rear"                 value="$(arg TOPIC_LASER_REAR)"               />
+    <param name="obs_distance_thres"               value="$(arg OBS_DISTANCE_THRES)"             />
+    <param name="self_detect_thres"                value="$(arg SELF_DETECT_THRES)"              />
+    <param name="dont_avoid_front"                 value="$(arg DONT_AVOID_FRONT)"               />
 
-  <rosparam file="$(arg ADMITTANCE_PARAMS_FILE)" command="load"/>
+    <node name="obstacle_avoidance" pkg="obstacle_avoidance"   type="obstacle_avoidance_node" output="screen"/>
+  </group>
+  
+</group>
 
-  <node pkg="admittance_control" name="admittance_controller"
-  type="admittance_controller_node" output="screen"/>
 
 </launch>

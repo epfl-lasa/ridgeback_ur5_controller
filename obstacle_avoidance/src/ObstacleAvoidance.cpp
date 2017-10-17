@@ -44,6 +44,8 @@ ObstacleAvoidance::ObstacleAvoidance(ros::NodeHandle &n,
   platform_desired_twist_.setZero();
   platform_desired_twist_modified_.setZero();
 
+  twist_target_.setZero();
+
   obs_vector_.setZero();
   laser_front_cloud_.points.resize(0);
   laser_rear_cloud_.points.resize(0);
@@ -82,7 +84,7 @@ void ObstacleAvoidance::run() {
 //////////////////////////////////////////////////////////////////
 void ObstacleAvoidance::avoid_obstacles() {
 
-  platform_desired_twist_modified_ = platform_desired_twist_;
+  twist_target_ = platform_desired_twist_;
 
   // Assumption: if obs_vector = (0,0,0) there is no obstacle
   double hard_threshold = obs_distance_thres_ / 2.0;
@@ -98,12 +100,16 @@ void ObstacleAvoidance::avoid_obstacles() {
                                - (obs_distance_thres_ - hard_threshold))
                               / hard_threshold));
       factor = std::min(std::max(factor, 0.0), 1.0);
-      platform_desired_twist_modified_.topRows(3) = platform_desired_twist_.topRows(3)
-          - factor *
-          (platform_desired_twist_.topRows(3).dot(obs_closest_point_frame)
-           * obs_closest_point_frame / obs_closest_point_frame.squaredNorm());
+      twist_target_.topRows(3) = platform_desired_twist_.topRows(3)
+                                 - factor *
+                                 (platform_desired_twist_.topRows(3).dot(obs_closest_point_frame)
+                                  * obs_closest_point_frame / obs_closest_point_frame.squaredNorm());
     }
   }
+
+  //filtering the velocities
+  platform_desired_twist_modified_ += 0.05 * (twist_target_-platform_desired_twist_modified_);
+
 }
 
 ///////////////////////////////////////////////////////////////
@@ -143,9 +149,6 @@ void ObstacleAvoidance::desired_velocity_callback(
   const geometry_msgs::TwistConstPtr msg) {
   platform_desired_twist_ << msg->linear.x, msg->linear.y, msg->linear.z,
                           msg->angular.x, msg->angular.y, msg->angular.z;
-
-
-  ROS_INFO_STREAM_THROTTLE(1, "receiving desired twist " << platform_desired_twist_);
 }
 
 void ObstacleAvoidance::laser_front_callback(

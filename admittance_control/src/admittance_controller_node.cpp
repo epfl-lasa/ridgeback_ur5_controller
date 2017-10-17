@@ -30,6 +30,11 @@ int main(int argc, char **argv)
   std::vector<double> d_e;
   std::vector<double> workspace_limits;
 
+  double arm_max_vel;
+  double arm_max_acc;
+  double platform_max_vel;
+  double platform_max_acc;
+
   double wrench_filter_factor;
   double force_dead_zone_thres;
   double torque_dead_zone_thres;
@@ -139,6 +144,26 @@ int main(int argc, char **argv)
     return -1;
   }
 
+  if (!nh.getParam("arm_max_vel", arm_max_vel)) {
+    ROS_ERROR("Couldn't retrieve the max velocity for the arm.");
+    return -1;
+  }
+
+  if (!nh.getParam("arm_max_acc", arm_max_acc)) {
+    ROS_ERROR("Couldn't retrieve the max acceleration for the arm.");
+    return -1;
+  }
+
+  if (!nh.getParam("platform_max_vel", platform_max_vel)) {
+    ROS_ERROR("Couldn't retrieve the max velocity for the platform.");
+    return -1;
+  }
+
+  if (!nh.getParam("platform_max_acc", platform_max_acc)) {
+    ROS_ERROR("Couldn't retrieve the max acceleration for the platform.");
+    return -1;
+  }
+
 
 
   // FORCE/TORQUE-SENSOR PARAMETERS
@@ -176,6 +201,8 @@ int main(int argc, char **argv)
     topic_equilibrium,
     M_p, M_a, D, D_p, D_a, K, d_e,
     workspace_limits,
+    arm_max_vel, arm_max_acc,
+    platform_max_vel, platform_max_acc,
     wrench_filter_factor,
     force_dead_zone_thres,
     torque_dead_zone_thres);

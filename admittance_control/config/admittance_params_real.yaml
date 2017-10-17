@@ -71,3 +71,8 @@ equilibrium_point_spring: [0.111,0.494,0.587,      0.707, 0.004, 0.707, 0.010]
 
 # this will limit the workspace ([x_min x_max y_min y_max z_min z_max])
 workspace_limits: [-0.30, 0.30, 0.35, 0.55, 0.20, 0.75]
+
+arm_max_vel: 1.0
+arm_max_acc: 5.0
+platform_max_vel: 0.5
+platform_max_acc: 2.0
