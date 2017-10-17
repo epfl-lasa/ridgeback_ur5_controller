@@ -405,10 +405,10 @@ void AdmittanceController::limit_to_workspace() {
 
   double norm_vel_des = (arm_desired_twist_.segment(0, 3)).norm();
 
-  if (norm_vel_des > 1.0) {
+  if (norm_vel_des > arm_max_vel_) {
     ROS_WARN_STREAM_THROTTLE(1, "Admittance generate fast movements! velocity norm: " << norm_vel_des);
 
-    arm_desired_twist_.segment(0, 3) *= (1.0 / norm_vel_des);
+    arm_desired_twist_.segment(0, 3) *= (arm_max_vel_/ norm_vel_des);
 
   }
 }
