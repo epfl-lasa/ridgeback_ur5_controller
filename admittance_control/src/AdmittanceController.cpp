@@ -12,7 +12,8 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
     std::string topic_arm_state,
     std::string topic_external_wrench,
     std::string topic_control_wrench,
-    std::string topic_equilibrium,
+    std::string topic_equilibrium_desired,
+    std::string topic_equilibrium_real,
     std::vector<double> M_p,
     std::vector<double> M_a,
     std::vector<double> D,
@@ -56,9 +57,9 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
                                       &AdmittanceController::wrench_control_callback, this,
                                       ros::TransportHints().reliable().tcpNoDelay());
 
-  sub_equilibrium_new_ = nh_.subscribe(topic_equilibrium, 10,
-                                       &AdmittanceController::equilibrium_callback, this,
-                                       ros::TransportHints().reliable().tcpNoDelay());
+  sub_equilibrium_desired_ = nh_.subscribe(topic_equilibrium_desired, 10,
+                             &AdmittanceController::equilibrium_callback, this,
+                             ros::TransportHints().reliable().tcpNoDelay());
 
 
   // Publishers
@@ -74,6 +75,12 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
                            topic_external_wrench_arm_frame, 5);
   pub_wrench_control_ = nh_.advertise<geometry_msgs::WrenchStamped>(
                           topic_control_wrench_arm_frame, 5);
+
+  pub_equilibrium_real_ = nh_.advertise<geometry_msgs::PointStamped>(
+                            topic_equilibrium_real, 5);
+
+
+
 
   ROS_INFO_STREAM("Arm max vel:" << arm_max_vel_ << " max acc:" << arm_max_acc_);
   ROS_INFO_STREAM("Platform max vel:" << platform_max_vel_ << " max acc:" << platform_max_acc_);
@@ -323,10 +330,10 @@ void AdmittanceController::equilibrium_callback(const geometry_msgs::PointPtr ms
 
   if (equ_update) {
     equilibrium_position_ = equilibrium_new_;
-    ROS_INFO_STREAM_THROTTLE(2, "New eauiibrium at : " <<
-                             equilibrium_position_(0) << " " <<
-                             equilibrium_position_(1) << " " <<
-                             equilibrium_position_(2)   );
+    // ROS_INFO_STREAM_THROTTLE(2, "New eauiibrium at : " <<
+    //                          equilibrium_position_(0) << " " <<
+    //                          equilibrium_position_(1) << " " <<
+    //                          equilibrium_position_(2)   );
   }
 
 }
@@ -408,7 +415,7 @@ void AdmittanceController::limit_to_workspace() {
   if (norm_vel_des > arm_max_vel_) {
     ROS_WARN_STREAM_THROTTLE(1, "Admittance generate fast movements! velocity norm: " << norm_vel_des);
 
-    arm_desired_twist_.segment(0, 3) *= (arm_max_vel_/ norm_vel_des);
+    arm_desired_twist_.segment(0, 3) *= (arm_max_vel_ / norm_vel_des);
 
   }
 }
@@ -477,7 +484,7 @@ bool AdmittanceController::get_rotation_matrix(Matrix6d & rotation_matrix,
   }
   catch (tf::TransformException ex) {
     rotation_matrix.setZero();
-    ROS_WARN_STREAM_THROTTLE(1,"Waiting for TF from: " << from_frame << " to: " << to_frame );
+    ROS_WARN_STREAM_THROTTLE(1, "Waiting for TF from: " << from_frame << " to: " << to_frame );
     return false;
   }
 
@@ -537,7 +544,7 @@ void AdmittanceController::publish_arm_state_in_world() {
       ee_pose_world_(6) = transform.getRotation().w();
     }
     catch (tf::TransformException ex) {
-      ROS_WARN_THROTTLE(1,"Couldn't lookup for ee to world transform...");
+      ROS_WARN_THROTTLE(1, "Couldn't lookup for ee to world transform...");
       ee_pose_world_.setZero();
       ee_pose_world_(6) = 1; // quat.w = 1
     }
@@ -582,6 +589,16 @@ void AdmittanceController::publish_debuggings_signals() {
   msg_wrench.wrench.torque.y = wrench_control_(4);
   msg_wrench.wrench.torque.z = wrench_control_(5);
   pub_wrench_control_.publish(msg_wrench);
+
+
+  geometry_msgs::PointStamped msg_point;
+
+  msg_point.header.stamp     = ros::Time::now();
+  msg_point.header.frame_id  = "ur5_arm_base_link";
+  msg_point.point.x          = equilibrium_position_(0);
+  msg_point.point.y          = equilibrium_position_(1);
+  msg_point.point.z          = equilibrium_position_(2);
+  pub_equilibrium_real_.publish(msg_point);
 
 }
 

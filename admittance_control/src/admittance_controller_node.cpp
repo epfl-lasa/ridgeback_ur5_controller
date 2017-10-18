@@ -15,7 +15,8 @@ int main(int argc, char **argv)
   std::string topic_platform_command;
   std::string topic_external_wrench;
   std::string topic_control_wrench;
-  std::string topic_equilibrium;
+  std::string topic_equilibrium_desired;
+  std::string topic_equilibrium_real;
   std::string topic_external_wrench_arm_frame;
   std::string topic_control_external_arm_frame;
   std::string topic_arm_pose_world;
@@ -74,10 +75,16 @@ int main(int argc, char **argv)
     return -1;
   }
 
-  if (!nh.getParam("topic_equilibrium", topic_equilibrium)) {
-    ROS_ERROR("Couldn't retrieve the topic name for the equilibrium point.");
+  if (!nh.getParam("topic_equilibrium_desired", topic_equilibrium_desired)) {
+    ROS_ERROR("Couldn't retrieve the topic name for the desired equilibrium point.");
     return -1;
   }
+
+  if (!nh.getParam("topic_equilibrium_real", topic_equilibrium_real)) {
+    ROS_ERROR("Couldn't retrieve the topic name for the  real equilibrium point.");
+    return -1;
+  }
+
 
   if (!nh.getParam("topic_external_wrench_arm_frame", topic_external_wrench_arm_frame)) {
     ROS_ERROR("Couldn't retrieve the topic name for the external wrench in the arm frame.");
@@ -198,7 +205,8 @@ int main(int argc, char **argv)
     topic_arm_state,
     topic_external_wrench,
     topic_control_wrench,
-    topic_equilibrium,
+    topic_equilibrium_desired,
+    topic_equilibrium_real,
     M_p, M_a, D, D_p, D_a, K, d_e,
     workspace_limits,
     arm_max_vel, arm_max_acc,

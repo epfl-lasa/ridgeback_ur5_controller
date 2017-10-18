@@ -99,7 +99,7 @@ protected:
   // Subscriber for the ft sensor at the endeffector
   ros::Subscriber sub_wrench_control_;
   // Subscriber for the offset of the attractor
-  ros::Subscriber sub_equilibrium_new_;
+  ros::Subscriber sub_equilibrium_desired_;
 
 
   // Publishers:
@@ -116,6 +116,8 @@ protected:
   ros::Publisher pub_wrench_external_;
   // Publisher for the control wrench specified in the world frame
   ros::Publisher pub_wrench_control_;
+  // Publisher to visualize the real equilibrium used by admittance.
+  ros::Publisher pub_equilibrium_real_;
 
 
   // INPUT SIGNAL
@@ -143,7 +145,7 @@ protected:
   // equilibrium orientation of the coupling spring
   Quaterniond equilibrium_orientation_;
 
-  // receiving an offset from a topic
+  // receiving a new equilibrium from a topic
   Vector3d equilibrium_new_;
 
 
@@ -241,7 +243,8 @@ public:
                        std::string state_topic_arm,
                        std::string wrench_topic,
                        std::string wrench_control_topic,
-                       std::string topic_equilibrium,
+                       std::string topic_equilibrium_deisred,
+                       std::string topic_equilibrium_real,
                        std::vector<double> M_p,
                        std::vector<double> M_a,
                        std::vector<double> D,

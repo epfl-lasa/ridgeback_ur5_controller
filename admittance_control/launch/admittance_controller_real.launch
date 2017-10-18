@@ -28,11 +28,14 @@
   <arg name="FORCE_DEAD_ZONE_THRES"  default="6.5" />
   <arg name="TORQUE_DEAD_ZONE_THRES" default="0.5" />
 
-  <!-- An input wrench that can be used for control (expected to be in ur5_arm_base_link)-->
+  <!-- An input topic that can be used for control (expected to be in ur5_arm_base_link)-->
   <arg name="TOPIC_CONTROL_WRENCH" default="/admittance_control/wrench_control" />
   
-  <!-- An input wrench that can be used to set the equilibrium point -->
-  <arg name="TOPIC_EQUILIBRIUM" default="/admittance_control/equilibrium" />
+  <!-- An input topic that can be used to set the equilibrium point -->
+  <arg name="TOPIC_EQUILIBRIUM_DESIRED" default="/admittance_control/equilibrium_desired" />
+  
+  <!-- An output topic that can be used to visualize equilibrium point (real equilibrium might differ from the desired one)-->
+  <arg name="TOPIC_EQUILIBRIUM_REAL" default="/admittance_control/equilibrium_real" />
 
 
   <!-- The received wrench by the FT-sensor and the controller will be published for dubugging/visualization -->
@@ -64,7 +67,8 @@
     <param name="topic_platform_command"           value="$(arg TOPIC_PLATFORM_DESIRED_TWIST)"   />
     <param name="topic_external_wrench"            value="$(arg TOPIC_EXTERNAL_WRENCH)"          />
     <param name="topic_control_wrench"             value="$(arg TOPIC_CONTROL_WRENCH)"           />
-    <param name="topic_equilibrium"                value="$(arg TOPIC_EQUILIBRIUM)"              />
+    <param name="topic_equilibrium_desired"        value="$(arg TOPIC_EQUILIBRIUM_DESIRED)"      />
+    <param name="topic_equilibrium_real"           value="$(arg TOPIC_EQUILIBRIUM_REAL)"         />
     <param name="topic_external_wrench_arm_frame"  value="$(arg TOPIC_EXTERNAL_WRENCH_ARM_FRAME)"/>
     <param name="topic_control_external_arm_frame" value="$(arg TOPIC_CONTROL_WRENCH_ARM_FRAME)" />
     <param name="topic_arm_pose_world"             value="$(arg TOPIC_ARM_POSE_WORLD)"           />
