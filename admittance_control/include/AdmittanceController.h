@@ -142,6 +142,7 @@ protected:
   Matrix6d M_p_, M_a_, D_, D_p_, D_a_, K_;
   // equilibrium position of the coupling spring
   Vector3d equilibrium_position_;
+  Vector3d equilibrium_position_seen_by_platform;
   // equilibrium orientation of the coupling spring
   Quaterniond equilibrium_orientation_;
 

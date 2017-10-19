@@ -96,6 +96,9 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
   // setting the equilibrium position and orientation
   Vector7d equilibrium_full(d_e.data());
   equilibrium_position_ << equilibrium_full.topRows(3);
+
+  // This does not change
+  equilibrium_position_seen_by_platform << equilibrium_full.topRows(3);
   // Make sure the orientation goal is normalized
   equilibrium_orientation_.coeffs() << equilibrium_full.bottomRows(4) /
                                     equilibrium_full.bottomRows(4).norm();
@@ -181,7 +184,6 @@ void AdmittanceController::compute_admittance() {
   Vector6d error;
 
   // Translation error w.r.t. desired equilibrium
-  error.topRows(3) = arm_real_position_ - equilibrium_position_;
 
   // Orientation error w.r.t. desired equilibriums
   if (equilibrium_orientation_.coeffs().dot(arm_real_orientation_.coeffs()) < 0.0) {
@@ -199,11 +201,18 @@ void AdmittanceController::compute_admittance() {
                       err_arm_des_orient.angle();
 
 
-  Vector6d coupling_wrench =  D_ * (arm_desired_twist_) + K_ * error;
+
+  error.topRows(3) = arm_real_position_ - equilibrium_position_seen_by_platform;
+  Vector6d coupling_wrench_platform =  D_ * (arm_desired_twist_) + K_ * error;
+
+  error.topRows(3) = arm_real_position_ - equilibrium_position_;
+  Vector6d coupling_wrench_arm =  D_ * (arm_desired_twist_) + K_ * error;
+
+
 
   platform_desired_acceleration = M_p_.inverse() * (- D_p_ * platform_desired_twist_
-                                  + rotation_base_ * kin_constraints_ * coupling_wrench);
-  arm_desired_accelaration = M_a_.inverse() * ( - coupling_wrench - D_a_ * arm_desired_twist_
+                                  + rotation_base_ * kin_constraints_ * coupling_wrench_platform);
+  arm_desired_accelaration = M_a_.inverse() * ( - coupling_wrench_arm - D_a_ * arm_desired_twist_
                              + wrench_external_ + wrench_control_);
 
   // limiting the accelaration for better stability and safety
@@ -306,35 +315,61 @@ void AdmittanceController::equilibrium_callback(const geometry_msgs::PointPtr ms
 
   equilibrium_new_ << msg->x , msg->y, msg->z;
 
-  bool equ_update = true;
-  if (equilibrium_new_(0) < workspace_limits_(0) || equilibrium_new_(0) > workspace_limits_(1)) {
-    ROS_WARN_STREAM_THROTTLE (1, "Desired equilibrium is out of workspace.  x = "
-                              << equilibrium_new_(0) << " not in [" << workspace_limits_(0) << " , "
-                              << workspace_limits_(1) << "]");
-    equ_update = false;
+  // bool equ_update = true;
+  // if (equilibrium_new_(0) < workspace_limits_(0) || equilibrium_new_(0) > workspace_limits_(1)) {
+  //   ROS_WARN_STREAM_THROTTLE (1, "Desired equilibrium is out of workspace.  x = "
+  //                             << equilibrium_new_(0) << " not in [" << workspace_limits_(0) << " , "
+  //                             << workspace_limits_(1) << "]");
+  //   equ_update = false;
+  // }
+
+  // if (equilibrium_new_(1) < workspace_limits_(2) || equilibrium_new_(1) > workspace_limits_(3)) {
+  //   ROS_WARN_STREAM_THROTTLE (1, "Desired equilibrium is out of workspace.  y = "
+  //                             << equilibrium_new_(1) << " not in [" << workspace_limits_(2) << " , "
+  //                             << workspace_limits_(3) << "]");
+  //   equ_update = false;
+  // }
+
+  // if (equilibrium_new_(2) < workspace_limits_(4) || equilibrium_new_(2) > workspace_limits_(5)) {
+  //   ROS_WARN_STREAM_THROTTLE (1, "Desired equilibrium is out of workspace.  x = "
+  //                             << equilibrium_new_(2) << " not in [" << workspace_limits_(4) << " , "
+  //                             << workspace_limits_(5) << "]");
+  //   equ_update = false;
+  // }
+
+  // if (equ_update) {
+  //   equilibrium_position_ = equilibrium_new_;
+  //   // ROS_INFO_STREAM_THROTTLE(2, "New eauiibrium at : " <<
+  //   //                          equilibrium_position_(0) << " " <<
+  //   //                          equilibrium_position_(1) << " " <<
+  //   //                          equilibrium_position_(2)   );
+  // }
+
+
+  if (equilibrium_new_(0) > workspace_limits_(0) && equilibrium_new_(0) < workspace_limits_(1)) {
+
+    equilibrium_position_(0) = equilibrium_new_(0);
   }
 
-  if (equilibrium_new_(1) < workspace_limits_(2) || equilibrium_new_(1) > workspace_limits_(3)) {
-    ROS_WARN_STREAM_THROTTLE (1, "Desired equilibrium is out of workspace.  y = "
-                              << equilibrium_new_(1) << " not in [" << workspace_limits_(2) << " , "
-                              << workspace_limits_(3) << "]");
-    equ_update = false;
+  if (equilibrium_new_(1) > workspace_limits_(2) && equilibrium_new_(1) < workspace_limits_(3)) {
+    equilibrium_position_(1) = equilibrium_new_(1);
+
   }
 
-  if (equilibrium_new_(2) < workspace_limits_(4) || equilibrium_new_(0) > workspace_limits_(5)) {
-    ROS_WARN_STREAM_THROTTLE (1, "Desired equilibrium is out of workspace.  x = "
-                              << equilibrium_new_(2) << " not in [" << workspace_limits_(4) << " , "
-                              << workspace_limits_(5) << "]");
-    equ_update = false;
+  if (equilibrium_new_(2) > workspace_limits_(4) && equilibrium_new_(2) < workspace_limits_(5)) {
+    equilibrium_position_(2) = equilibrium_new_(2);
+
   }
 
-  if (equ_update) {
-    equilibrium_position_ = equilibrium_new_;
-    // ROS_INFO_STREAM_THROTTLE(2, "New eauiibrium at : " <<
-    //                          equilibrium_position_(0) << " " <<
-    //                          equilibrium_position_(1) << " " <<
-    //                          equilibrium_position_(2)   );
-  }
+
+
+
+
+
+
+
+
+
 
 }
 
@@ -413,9 +448,18 @@ void AdmittanceController::limit_to_workspace() {
   double norm_vel_des = (arm_desired_twist_.segment(0, 3)).norm();
 
   if (norm_vel_des > arm_max_vel_) {
-    ROS_WARN_STREAM_THROTTLE(1, "Admittance generate fast movements! velocity norm: " << norm_vel_des);
+    ROS_WARN_STREAM_THROTTLE(1, "Admittance generate fast arm movements! velocity norm: " << norm_vel_des);
 
     arm_desired_twist_.segment(0, 3) *= (arm_max_vel_ / norm_vel_des);
+
+  }
+
+  double norm_vel_platform = (platform_desired_twist_.segment(0, 3)).norm();
+
+    if (norm_vel_platform > platform_max_vel_) {
+    ROS_WARN_STREAM_THROTTLE(1, "Admittance generate fast platform movements! velocity norm: " << norm_vel_platform);
+
+    platform_desired_twist_.segment(0, 3) *= (platform_max_vel_ / norm_vel_platform);
 
   }
 }
