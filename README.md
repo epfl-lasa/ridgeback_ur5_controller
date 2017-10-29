@@ -4,7 +4,8 @@ Ridgeback+Ur5 Controller
 This repository provides several contollers for the Ridgeback mobile-robot with Ur5 robotic-arm. 
 
 
-* [admittance_control](https://github.com/epfl-lasa/ridgeback_ur5_controller/tree/devel/admittance_control): This package implements an admittance controller on the ridgeback+UR5 platform (see below for the control architecture). 
+* [admittance_control](https://github.com/epfl-lasa/ridgeback_ur5_controller/tree/devel/admittance_control): 
+This package implements an admittance controller on the ridgeback+UR5 platform (see below for the control architecture). 
 * [ur5_cartesian_velocity_control](https://github.com/epfl-lasa/ridgeback_ur5_controller/tree/devel/ur5_cartesian_velocity_control): This package provides a cartesian velocity controller (ros control) for the UR5 arm. 
 * [obstacle_avoidance](https://github.com/epfl-lasa/ridgeback_ur5_controller/tree/devel/obstacle_avoidance): This package provides a simple obstacle-avoidance for the platform. It looks for the nearest obstacle using the laser sensors and remove the velocity components in that direction.
 * [cpr_bringup](https://github.com/epfl-lasa/ridgeback_ur5_controller/tree/devel/cpr_bringup): This package provide a series of launch files and ROS settings in order to start-up the real-robot as well as the simulator. 
