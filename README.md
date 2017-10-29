@@ -4,11 +4,11 @@ Ridgeback+Ur5 Controller
 This repository provides several contollers for the Ridgeback mobile-robot with Ur5 robotic-arm. 
 
 
-1-[admittance_control](https://github.com/epfl-lasa/ridgeback_ur5_controller/tree/devel/admittance_control)
-2-[ur5_cartesian_velocity_control](https://github.com/epfl-lasa/ridgeback_ur5_controller/tree/devel/ur5_cartesian_velocity_control)
-3-[obstacle_avoidance](https://github.com/epfl-lasa/ridgeback_ur5_controller/tree/devel/obstacle_avoidance)
-4-[cpr_bringup](https://github.com/epfl-lasa/ridgeback_ur5_controller/tree/devel/cpr_bringup)
-5-[cartesian_state_msgs](https://github.com/epfl-lasa/ridgeback_ur5_controller/tree/devel/cartesian_state_msgs)
+* [admittance_control](https://github.com/epfl-lasa/ridgeback_ur5_controller/tree/devel/admittance_control)
+* [ur5_cartesian_velocity_control](https://github.com/epfl-lasa/ridgeback_ur5_controller/tree/devel/ur5_cartesian_velocity_control)
+* [obstacle_avoidance](https://github.com/epfl-lasa/ridgeback_ur5_controller/tree/devel/obstacle_avoidance)
+* [cpr_bringup](https://github.com/epfl-lasa/ridgeback_ur5_controller/tree/devel/cpr_bringup)
+* [cartesian_state_msgs](https://github.com/epfl-lasa/ridgeback_ur5_controller/tree/devel/cartesian_state_msgs)
 
 DEVEL branch: Here, we will try to extend the admittance controller.
 1) the equilibrium point for the position and velocity will be received from a topic
