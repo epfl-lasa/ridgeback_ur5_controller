@@ -1,4 +1,4 @@
-Ridgeback+Ur5 Controller
+# Ridgeback+Ur5 Controller [DEVEL]
 [![Build Status](https://travis-ci.com/epfl-lasa/ridgeback_ur5_controller.svg?token=m4ujgeX7fDuuc9CGktAM&branch=master)](https://travis-ci.com/epfl-lasa/ridgeback_ur5_controller)
 
 This repository provides several contollers for the Ridgeback mobile-robot with Ur5 robotic-arm. 
@@ -10,13 +10,6 @@ This package implements an admittance controller on the ridgeback+UR5 platform (
 * [obstacle_avoidance](https://github.com/epfl-lasa/ridgeback_ur5_controller/tree/devel/obstacle_avoidance): This package provides a simple obstacle-avoidance for the platform. It looks for the nearest obstacle using the laser sensors and remove the velocity components in that direction.
 * [cpr_bringup](https://github.com/epfl-lasa/ridgeback_ur5_controller/tree/devel/cpr_bringup): This package provide a series of launch files and ROS settings in order to start-up the real-robot as well as the simulator. 
 * [cartesian_state_msgs](https://github.com/epfl-lasa/ridgeback_ur5_controller/tree/devel/cartesian_state_msgs): It contains the defintion of message type "PoseTwist" (combination of the standard ros/geometry_msgs pose and twist).
-
-DEVEL branch: Here, we will try to extend the admittance controller.
-1) the equilibrium point for the position and velocity will be received from a topic
-2) the parameters of the admittance control will be dynamically reconfigurable.
-
-
-
 
 
 ---
