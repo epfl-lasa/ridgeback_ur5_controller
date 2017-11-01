@@ -8,7 +8,8 @@ This repository provides several contollers for the Ridgeback mobile-robot with 
 This package implements an admittance controller on the ridgeback+UR5 platform (see below for the control architecture). 
 * [ur5_cartesian_velocity_control](https://github.com/epfl-lasa/ridgeback_ur5_controller/tree/devel/ur5_cartesian_velocity_control): This package provides a cartesian velocity controller (ros control) for the UR5 arm. 
 * [obstacle_avoidance](https://github.com/epfl-lasa/ridgeback_ur5_controller/tree/devel/obstacle_avoidance): This package provides a simple obstacle-avoidance for the platform. It looks for the nearest obstacle using the laser sensors and remove the velocity components in that direction.
-* [cpr_bringup](https://github.com/epfl-lasa/ridgeback_ur5_controller/tree/devel/cpr_bringup): This package provide a series of launch files and ROS settings in order to start-up the real-robot as well as the simulator. 
+* [cpr_bringup](https://github.com/epfl-lasa/ridgeback_ur5_controller/tree/devel/cpr_bringup): This package provides a series of launch files and ROS settings in order to start-up the real-robot as well as the simulator. 
+* [cpr_mocap_tracking](https://github.com/epfl-lasa/ridgeback_ur5_controller/tree/devel/cpr_mocap_tracking): This package enables the robot to track an object (using mocap system) in its own frame of references (automatic calibration is included).
 * [cartesian_state_msgs](https://github.com/epfl-lasa/ridgeback_ur5_controller/tree/devel/cartesian_state_msgs): It contains the defintion of message type "PoseTwist" (combination of the standard ros/geometry_msgs pose and twist).
 
 
