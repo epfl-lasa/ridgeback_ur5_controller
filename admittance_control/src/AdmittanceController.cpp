@@ -123,14 +123,20 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
   platform_desired_twist_.setZero();
 
   // Kinematic constraints between base and arm at the equilibrium
+  // the base only effected by arm in x,y and rz 
   kin_constraints_.setZero();
-  kin_constraints_.topLeftCorner(3, 3).setIdentity();
-  kin_constraints_.bottomRightCorner(3, 3).setIdentity();
+  kin_constraints_.topLeftCorner(2, 2).setIdentity();
+  kin_constraints_.bottomRightCorner(1, 1).setIdentity();
+
+
+  // kin_constraints_.setZero();
+  // kin_constraints_.topLeftCorner(3, 3).setIdentity();
+  // kin_constraints_.bottomRightCorner(3, 3).setIdentity();
   // Screw on the z torque axis
-  kin_constraints_.topRightCorner(3, 3) <<
-                                        0, 0, equilibrium_position_(1),
-                                        0, 0, -equilibrium_position_(0),
-                                        0, 0, 0;
+  // kin_constraints_.topRightCorner(3, 3) <<
+  //                                       0, 0, equilibrium_position_(1),
+  //                                       0, 0, -equilibrium_position_(0),
+  //                                       0, 0, 0;
 
 
   ft_arm_ready_ = false;
@@ -183,7 +189,6 @@ void AdmittanceController::compute_admittance() {
 
   Vector6d error;
 
-  // Translation error w.r.t. desired equilibrium
 
   // Orientation error w.r.t. desired equilibriums
   if (equilibrium_orientation_.coeffs().dot(arm_real_orientation_.coeffs()) < 0.0) {
@@ -201,7 +206,7 @@ void AdmittanceController::compute_admittance() {
                       err_arm_des_orient.angle();
 
 
-
+  // Translation error w.r.t. desired equilibrium
   error.topRows(3) = arm_real_position_ - equilibrium_position_seen_by_platform;
   Vector6d coupling_wrench_platform =  D_ * (arm_desired_twist_) + K_ * error;
 
@@ -216,13 +221,14 @@ void AdmittanceController::compute_admittance() {
                              + wrench_external_ + wrench_control_);
 
   // limiting the accelaration for better stability and safety
-  double p_acc_norm = (platform_desired_acceleration.segment(0, 3)).norm();
+  // x and y for  platform and x,y,z for the arm
+  double p_acc_norm = (platform_desired_acceleration.segment(0, 2)).norm();
   double a_acc_norm = (arm_desired_accelaration.segment(0, 3)).norm();
 
   if (p_acc_norm > platform_max_acc_) {
     ROS_WARN_STREAM_THROTTLE(1, "Admittance generates high platform accelaration!"
                              << " norm: " << p_acc_norm);
-    platform_desired_acceleration.segment(0, 3) *= (platform_max_acc_ / p_acc_norm);
+    platform_desired_acceleration.segment(0, 2) *= (platform_max_acc_ / p_acc_norm);
   }
 
   if (a_acc_norm > arm_max_acc_) {
@@ -445,6 +451,7 @@ void AdmittanceController::limit_to_workspace() {
     arm_desired_twist_(2) = 0;
   }
 
+  // velocity of the arm along x, y, and z axis
   double norm_vel_des = (arm_desired_twist_.segment(0, 3)).norm();
 
   if (norm_vel_des > arm_max_vel_) {
@@ -454,12 +461,13 @@ void AdmittanceController::limit_to_workspace() {
 
   }
 
-  double norm_vel_platform = (platform_desired_twist_.segment(0, 3)).norm();
+  // velocity of the platfrom only along x and y axis
+  double norm_vel_platform = (platform_desired_twist_.segment(0, 2)).norm();
 
-    if (norm_vel_platform > platform_max_vel_) {
+  if (norm_vel_platform > platform_max_vel_) {
     ROS_WARN_STREAM_THROTTLE(1, "Admittance generate fast platform movements! velocity norm: " << norm_vel_platform);
 
-    platform_desired_twist_.segment(0, 3) *= (platform_max_vel_ / norm_vel_platform);
+    platform_desired_twist_.segment(0, 2) *= (platform_max_vel_ / norm_vel_platform);
 
   }
 }
