@@ -73,13 +73,23 @@ You might need to follow [these instructions](http://gazebosim.org/tutorials?tut
 To bring up the robot in simulation run
 ```
 roslaunch cpr_bringup cpr_bringup.launch
-roslaunch admittance_control admittance_controller.launch
+roslaunch admittane_control admittance_controller.launch
 ```
 For the real robot launch on the CPR main PC run
 ```
 roslaunch cpr_bringup cpr_bringup.launch sim:=false
 roslaunch admittance_control admittance_controller_real.launch
 ```
+
+# Expected behaviors
+
+The behavior of different components are demonstrated here:
+* [admittance control](https://youtu.be/e6_z8rCOoIs) and its [rviz](https://youtu.be/T10rhY_HqZo)
+* [obstacle avoidance](https://youtu.be/tqsskZV-D6A) and its [rviz](https://youtu.be/m-LsolZWia8).
+* [object tracking](https://youtu.be/k5OMNfCmOGY) and its [rviz](https://youtu.be/ru9Xr6W0rQE).
+
+
+
 
 # Control Architecture
 
