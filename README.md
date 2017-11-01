@@ -15,7 +15,7 @@ This package implements an admittance controller on the ridgeback+UR5 platform (
 
 ---
 
-## compliation and build
+## Compliation and build
 
 Clone the repository intor your catkin source directory
 ```bash

@@ -1,0 +1,47 @@
+<launch>
+
+  <!-- Pass in mocap_config_file:=/path/to/config.yaml to change options. -->
+  <arg name="mocap_config_file"
+       default="$(find cpr_mocap_tracking)/config/mocap_cpr.yml" />
+
+  <group>
+    <node name="mocap_node"
+          pkg="mocap_optitrack"
+          type="mocap_node"
+          respawn="false"
+          output="screen"
+          launch-prefix=""
+          required="true">
+      <rosparam file="$(arg mocap_config_file)" command="load" />
+    </node>
+
+    <!-- <param name="frame_robot_calibration" value="robotiq_force_torque_frame_id"/> -->
+    <param name="frame_platform_base"     value="base_link"/>
+    <param name="frame_arm_base"          value="ur5_arm_base"/>
+
+    <param name="frame_robot_calibration" value="mid_pc_link"/>
+    <param name="frame_robot_endeffector" value="robotiq_force_torque_frame_id"/>
+    <param name="frame_robot_object"      value="object"/>
+
+    <param name="frame_mocap_calibration" value="mocap_mid_pc"/>
+    <param name="frame_mocap_endeffector" value="mocap_palm"/>
+    <param name="frame_mocap_object"      value="mocap_object"/>
+
+    <node name="object_tracking_node"
+          pkg ="cpr_load_support"
+          type="object_tracking_node"
+          output="screen">
+    </node>
+
+
+
+    <!-- This tf corresponds to the marker that is attached to the pc on the platform -->
+    <node name="tf_publisher_mid_pc" 
+      pkg="tf" 
+      type="static_transform_publisher"  
+      args="-.23 0.0 .35 0.0 0.0 0.0 base_link mid_pc_link 5" />
+
+  </group>
+
+
+</launch>
