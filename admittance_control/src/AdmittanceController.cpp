@@ -123,7 +123,7 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
   platform_desired_twist_.setZero();
 
   // Kinematic constraints between base and arm at the equilibrium
-  // the base only effected by arm in x,y and rz 
+  // the base only effected by arm in x,y and rz
   kin_constraints_.setZero();
   kin_constraints_.topLeftCorner(2, 2).setIdentity();
   kin_constraints_.bottomRightCorner(1, 1).setIdentity();
@@ -288,12 +288,24 @@ void AdmittanceController::wrench_callback(
                     msg->wrench.torque.y, msg->wrench.torque.z;
 
     // Dead zone for the FT sensor
-    if (wrench_ft_frame.topRows(3).norm() < force_dead_zone_thres_) {
-      wrench_ft_frame.topRows(3).setZero();
+    // if (wrench_ft_frame.topRows(3).norm() < force_dead_zone_thres_) {
+    //   wrench_ft_frame.topRows(3).setZero();
+    // }
+    // if (wrench_ft_frame.bottomRows(3).norm() < torque_dead_zone_thres_) {
+    //   wrench_ft_frame.bottomRows(3).setZero();
+    // }
+
+    for (int i = 0; i < 3; i++) {
+      if (abs(wrench_ft_frame(i)) < force_dead_zone_thres_) {
+        wrench_ft_frame(i) = 0;
+      }
+      if (abs(wrench_ft_frame(i+3)) < torque_dead_zone_thres_) {
+        wrench_ft_frame(i+3) = 0;
+      }
     }
-    if (wrench_ft_frame.bottomRows(3).norm() < torque_dead_zone_thres_) {
-      wrench_ft_frame.bottomRows(3).setZero();
-    }
+
+
+
 
     // Get transform from arm base link to platform base link
     get_rotation_matrix(rotation_ft_base, listener_ft_,

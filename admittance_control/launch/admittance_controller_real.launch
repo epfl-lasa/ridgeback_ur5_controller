@@ -25,7 +25,7 @@
   <!-- The wrench is specified in robotiq_force_torque_frame_id -->
   <arg name="TOPIC_EXTERNAL_WRENCH"  default="/admittance_control/wrench" />
   <arg name="WRENCH_FILTER_FACTOR"   default="0.1" />
-  <arg name="FORCE_DEAD_ZONE_THRES"  default="6.5" />
+  <arg name="FORCE_DEAD_ZONE_THRES"  default="5.0" />
   <arg name="TORQUE_DEAD_ZONE_THRES" default="0.5" />
 
   <!-- An input topic that can be used for control (expected to be in ur5_arm_base_link)-->
