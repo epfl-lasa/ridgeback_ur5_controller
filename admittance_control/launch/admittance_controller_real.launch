@@ -43,6 +43,10 @@
   <arg name="TOPIC_EXTERNAL_WRENCH_ARM_FRAME" default="/admittance_control/transformed/external_wrench" />
   <arg name="TOPIC_CONTROL_WRENCH_ARM_FRAME"  default="/admittance_control/transformed/control_wrench"  />
 
+  <!-- admittance ratio is a value between zero and one that modulated the input force as to control the stiffness-->
+  <arg name="TOPIC_AMITTANCE_RATIO"  default="/admittance_control/admittance_ratio"  />
+
+
   <!-- The node will publish the position and the velocity of the in the world frame (Not very sure, need to be checked) -->
   <arg name="TOPIC_ARM_POSE_WORLD"  default="/admittance_control/ee_pose_world"  />
   <arg name="TOPIC_ARM_TWIST_WORLD" default="/admittance_control/ee_twist_world" />
@@ -71,6 +75,7 @@
     <param name="topic_equilibrium_real"           value="$(arg TOPIC_EQUILIBRIUM_REAL)"         />
     <param name="topic_external_wrench_arm_frame"  value="$(arg TOPIC_EXTERNAL_WRENCH_ARM_FRAME)"/>
     <param name="topic_control_external_arm_frame" value="$(arg TOPIC_CONTROL_WRENCH_ARM_FRAME)" />
+    <param name="topic_admittance_ratio"           value="$(arg TOPIC_AMITTANCE_RATIO)"          />
     <param name="topic_arm_pose_world"             value="$(arg TOPIC_ARM_POSE_WORLD)"           />
     <param name="topic_arm_twist_world"            value="$(arg TOPIC_ARM_TWIST_WORLD)"          />
     <param name="wrench_filter_factor"             value="$(arg WRENCH_FILTER_FACTOR)"           />

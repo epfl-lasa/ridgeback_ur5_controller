@@ -16,6 +16,8 @@
 #include "eigen3/Eigen/Geometry"
 #include "eigen3/Eigen/Dense"
 
+#include "std_msgs/Float32.h"
+
 
 // AdmittanceController class //
 // A simple class implementing an admittance
@@ -100,6 +102,8 @@ protected:
   ros::Subscriber sub_wrench_control_;
   // Subscriber for the offset of the attractor
   ros::Subscriber sub_equilibrium_desired_;
+  // Subscriber for the admittance ratio
+  ros::Subscriber sub_admittance_ratio_;
 
 
   // Publishers:
@@ -132,6 +136,7 @@ protected:
   double wrench_filter_factor_;
   double force_dead_zone_thres_;
   double torque_dead_zone_thres_;
+  double admittance_ratio_;
 
 
   // ADMITTANCE PARAMETERS:
@@ -232,6 +237,9 @@ protected:
 
   void equilibrium_callback(const geometry_msgs::PointPtr msg);
 
+  void admittance_ratio_callback(const std_msgs::Float32Ptr msg);
+
+
 public:
   AdmittanceController(ros::NodeHandle &n, double frequency,
                        std::string cmd_topic_platform,
@@ -244,6 +252,7 @@ public:
                        std::string state_topic_arm,
                        std::string wrench_topic,
                        std::string wrench_control_topic,
+                       std::string topic_admittance_ratio,
                        std::string topic_equilibrium_deisred,
                        std::string topic_equilibrium_real,
                        std::vector<double> M_p,

@@ -19,6 +19,7 @@ int main(int argc, char **argv)
   std::string topic_equilibrium_real;
   std::string topic_external_wrench_arm_frame;
   std::string topic_control_external_arm_frame;
+  std::string topic_admittance_ratio;
   std::string topic_arm_pose_world;
   std::string topic_arm_twist_world;
 
@@ -85,7 +86,6 @@ int main(int argc, char **argv)
     return -1;
   }
 
-
   if (!nh.getParam("topic_external_wrench_arm_frame", topic_external_wrench_arm_frame)) {
     ROS_ERROR("Couldn't retrieve the topic name for the external wrench in the arm frame.");
     return -1;
@@ -93,6 +93,11 @@ int main(int argc, char **argv)
 
   if (!nh.getParam("topic_control_external_arm_frame", topic_control_external_arm_frame)) {
     ROS_ERROR("Couldn't retrieve the topic name for the control wrench in the arm frame.");
+    return -1;
+  }
+
+  if (!nh.getParam("topic_admittance_ratio", topic_admittance_ratio)) {
+    ROS_ERROR("Couldn't retrieve the topic name for the admittance ratio.");
     return -1;
   }
 
@@ -205,6 +210,7 @@ int main(int argc, char **argv)
     topic_arm_state,
     topic_external_wrench,
     topic_control_wrench,
+    topic_admittance_ratio,
     topic_equilibrium_desired,
     topic_equilibrium_real,
     M_p, M_a, D, D_p, D_a, K, d_e,

@@ -12,6 +12,7 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
     std::string topic_arm_state,
     std::string topic_external_wrench,
     std::string topic_control_wrench,
+    std::string topic_admittance_ratio,
     std::string topic_equilibrium_desired,
     std::string topic_equilibrium_real,
     std::vector<double> M_p,
@@ -59,6 +60,10 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
 
   sub_equilibrium_desired_ = nh_.subscribe(topic_equilibrium_desired, 10,
                              &AdmittanceController::equilibrium_callback, this,
+                             ros::TransportHints().reliable().tcpNoDelay());
+
+  sub_admittance_ratio_ = nh_.subscribe(topic_admittance_ratio, 10,
+                             &AdmittanceController::admittance_ratio_callback, this,
                              ros::TransportHints().reliable().tcpNoDelay());
 
 
@@ -144,6 +149,8 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
   base_world_ready_ = false;
   world_arm_ready_ = false;
 
+  admittance_ratio_ = 1;
+
   wait_for_transformations();
 }
 
@@ -218,7 +225,7 @@ void AdmittanceController::compute_admittance() {
   platform_desired_acceleration = M_p_.inverse() * (- D_p_ * platform_desired_twist_
                                   + rotation_base_ * kin_constraints_ * coupling_wrench_platform);
   arm_desired_accelaration = M_a_.inverse() * ( - coupling_wrench_arm - D_a_ * arm_desired_twist_
-                             + wrench_external_ + wrench_control_);
+                             + admittance_ratio_ * wrench_external_ + wrench_control_);
 
   // limiting the accelaration for better stability and safety
   // x and y for  platform and x,y,z for the arm
@@ -313,7 +320,7 @@ void AdmittanceController::wrench_callback(
 
     // Filter and update
     wrench_external_ <<  (1 - wrench_filter_factor_) * wrench_external_ +
-                     wrench_filter_factor_ * rotation_ft_base * wrench_ft_frame;
+                      wrench_filter_factor_ * rotation_ft_base * wrench_ft_frame;
   }
 }
 
@@ -379,15 +386,26 @@ void AdmittanceController::equilibrium_callback(const geometry_msgs::PointPtr ms
 
   }
 
+}
 
 
+void AdmittanceController::admittance_ratio_callback(const std_msgs::Float32Ptr msg){
 
+  double h = msg->data;
 
+  if (h > 1){
+    ROS_WARN_STREAM_THROTTLE(1, "Admittance ration higher than one is recieved " <<  h);
+    h = 1; 
+  } 
+  else if(h < 0 ){
+    ROS_WARN_STREAM_THROTTLE(1, "Admittance ratio lower than zero is recieved " << h);
+    h = 0;
+  }
+  else {
+    ROS_WARN_STREAM_THROTTLE(1, "Admittance ratio between 0 and 1 recieved " << h);
+  }
 
-
-
-
-
+  admittance_ratio_ = h;
 
 }
 
