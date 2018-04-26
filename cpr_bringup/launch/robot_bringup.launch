@@ -1,3 +1,4 @@
+<?xml version="1.0" ?>
 <launch>
   <arg name="sim" default="true" />
   <arg name="use_sim_time" default="true" />

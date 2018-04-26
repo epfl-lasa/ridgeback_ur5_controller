@@ -15,6 +15,7 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
     std::string topic_admittance_ratio,
     std::string topic_equilibrium_desired,
     std::string topic_equilibrium_real,
+    std::string topic_ds_velocity,
     std::vector<double> M_p,
     std::vector<double> M_a,
     std::vector<double> D,
@@ -62,9 +63,13 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
                              &AdmittanceController::equilibrium_callback, this,
                              ros::TransportHints().reliable().tcpNoDelay());
 
+  sub_ds_velocity_ = nh_.subscribe(topic_ds_velocity, 10,
+                              &AdmittanceController::ds_velocity_callback , this,
+                              ros::TransportHints().reliable().tcpNoDelay());
+
   sub_admittance_ratio_ = nh_.subscribe(topic_admittance_ratio, 10,
-                             &AdmittanceController::admittance_ratio_callback, this,
-                             ros::TransportHints().reliable().tcpNoDelay());
+                                        &AdmittanceController::admittance_ratio_callback, this,
+                                        ros::TransportHints().reliable().tcpNoDelay());
 
 
   // Publishers
@@ -110,6 +115,7 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
 
   equilibrium_new_.setZero();
 
+
   // starting from a state that does not create movements on the robot
   arm_real_orientation_ = equilibrium_orientation_;
 
@@ -124,8 +130,12 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
   }
 
   // Init integrator
-  arm_desired_twist_.setZero();
+  arm_desired_twist_adm_.setZero();
   platform_desired_twist_.setZero();
+
+  arm_desired_twist_ds_.setZero();
+  arm_desired_twist_final_.setZero();
+
 
   // Kinematic constraints between base and arm at the equilibrium
   // the base only effected by arm in x,y and rz
@@ -165,6 +175,7 @@ void AdmittanceController::run() {
     // Admittance Dynamics computation
     compute_admittance();
 
+    // sum the vel from admittance to DS in this function
     // limit the the movement of the arm to the permitted workspace
     limit_to_workspace();
 
@@ -215,16 +226,16 @@ void AdmittanceController::compute_admittance() {
 
   // Translation error w.r.t. desired equilibrium
   error.topRows(3) = arm_real_position_ - equilibrium_position_seen_by_platform;
-  Vector6d coupling_wrench_platform =  D_ * (arm_desired_twist_) + K_ * error;
+  Vector6d coupling_wrench_platform =  D_ * (arm_desired_twist_adm_) + K_ * error;
 
   error.topRows(3) = arm_real_position_ - equilibrium_position_;
-  Vector6d coupling_wrench_arm =  D_ * (arm_desired_twist_) + K_ * error;
+  Vector6d coupling_wrench_arm =  D_ * (arm_desired_twist_adm_) + K_ * error;
 
 
 
   platform_desired_acceleration = M_p_.inverse() * (- D_p_ * platform_desired_twist_
                                   + rotation_base_ * kin_constraints_ * coupling_wrench_platform);
-  arm_desired_accelaration = M_a_.inverse() * ( - coupling_wrench_arm - D_a_ * arm_desired_twist_
+  arm_desired_accelaration = M_a_.inverse() * ( - coupling_wrench_arm - D_a_ * arm_desired_twist_adm_
                              + admittance_ratio_ * wrench_external_ + wrench_control_);
 
   // limiting the accelaration for better stability and safety
@@ -248,7 +259,8 @@ void AdmittanceController::compute_admittance() {
   ros::Duration duration = loop_rate_.expectedCycleTime();
 
   platform_desired_twist_ += platform_desired_acceleration * duration.toSec();
-  arm_desired_twist_      += arm_desired_accelaration      * duration.toSec();
+  arm_desired_twist_adm_      += arm_desired_accelaration      * duration.toSec();
+
 
 }
 
@@ -306,8 +318,8 @@ void AdmittanceController::wrench_callback(
       if (abs(wrench_ft_frame(i)) < force_dead_zone_thres_) {
         wrench_ft_frame(i) = 0;
       }
-      if (abs(wrench_ft_frame(i+3)) < torque_dead_zone_thres_) {
-        wrench_ft_frame(i+3) = 0;
+      if (abs(wrench_ft_frame(i + 3)) < torque_dead_zone_thres_) {
+        wrench_ft_frame(i + 3) = 0;
       }
     }
 
@@ -320,7 +332,7 @@ void AdmittanceController::wrench_callback(
 
     // Filter and update
     wrench_external_ <<  (1 - wrench_filter_factor_) * wrench_external_ +
-                      wrench_filter_factor_ * rotation_ft_base * wrench_ft_frame;
+                     wrench_filter_factor_ * rotation_ft_base * wrench_ft_frame;
   }
 }
 
@@ -336,6 +348,11 @@ void AdmittanceController::wrench_control_callback(
   }
 }
 
+void AdmittanceController::ds_velocity_callback(const geometry_msgs::TwistStampedPtr msg) {
+
+  arm_desired_twist_ds_ << msg->twist.linear.x , msg->twist.linear.y , msg->twist.linear.z ;
+
+}
 void AdmittanceController::equilibrium_callback(const geometry_msgs::PointPtr msg) {
 
   equilibrium_new_ << msg->x , msg->y, msg->z;
@@ -389,15 +406,15 @@ void AdmittanceController::equilibrium_callback(const geometry_msgs::PointPtr ms
 }
 
 
-void AdmittanceController::admittance_ratio_callback(const std_msgs::Float32Ptr msg){
+void AdmittanceController::admittance_ratio_callback(const std_msgs::Float32Ptr msg) {
 
   double h = msg->data;
 
-  if (h > 1){
+  if (h > 1) {
     ROS_WARN_STREAM_THROTTLE(1, "Admittance ration higher than one is recieved " <<  h);
-    h = 1; 
-  } 
-  else if(h < 0 ){
+    h = 1;
+  }
+  else if (h < 0 ) {
     ROS_WARN_STREAM_THROTTLE(1, "Admittance ratio lower than zero is recieved " << h);
     h = 0;
   }
@@ -414,8 +431,8 @@ void AdmittanceController::admittance_ratio_callback(const std_msgs::Float32Ptr 
 ///////////////////////////////////////////////////////////////
 void AdmittanceController::send_commands_to_robot() {
 
+  // for the platform
   geometry_msgs::Twist platform_twist_cmd;
-  geometry_msgs::Twist arm_twist_cmd;
 
   platform_twist_cmd.linear.x  = platform_desired_twist_(0);
   platform_twist_cmd.linear.y  = platform_desired_twist_(1);
@@ -424,14 +441,21 @@ void AdmittanceController::send_commands_to_robot() {
   platform_twist_cmd.angular.y = platform_desired_twist_(4);
   platform_twist_cmd.angular.z = platform_desired_twist_(5);
 
-  arm_twist_cmd.linear.x  = arm_desired_twist_(0);
-  arm_twist_cmd.linear.y  = arm_desired_twist_(1);
-  arm_twist_cmd.linear.z  = arm_desired_twist_(2);
-  arm_twist_cmd.angular.x = arm_desired_twist_(3);
-  arm_twist_cmd.angular.y = arm_desired_twist_(4);
-  arm_twist_cmd.angular.z = arm_desired_twist_(5);
-
   pub_platform_cmd_.publish(platform_twist_cmd);
+
+
+  // for the arm
+  geometry_msgs::Twist arm_twist_cmd;
+
+  arm_twist_cmd.linear.x  = arm_desired_twist_final_(0);
+  arm_twist_cmd.linear.y  = arm_desired_twist_final_(1);
+  arm_twist_cmd.linear.z  = arm_desired_twist_final_(2);
+  arm_twist_cmd.angular.x = arm_desired_twist_final_(3);
+  arm_twist_cmd.angular.y = arm_desired_twist_final_(4);
+  arm_twist_cmd.angular.z = arm_desired_twist_final_(5);
+
+  // ROS_WARN_STREAM_THROTTLE(1,"sending z vel: " << arm_twist_cmd.linear.z);
+
   pub_arm_cmd_.publish(arm_twist_cmd);
 }
 
@@ -457,37 +481,40 @@ void AdmittanceController::limit_to_workspace() {
   }
 
 
-  if (arm_desired_twist_(0) < 0 && arm_real_position_(0) < workspace_limits_(0)) {
-    arm_desired_twist_(0) = 0;
+  arm_desired_twist_final_ = arm_desired_twist_adm_;
+  arm_desired_twist_final_.segment(0,3) += arm_desired_twist_ds_;
+
+  if (arm_desired_twist_final_(0) < 0 && arm_real_position_(0) < workspace_limits_(0)) {
+    arm_desired_twist_final_(0) = 0;
   }
 
-  if (arm_desired_twist_(0) > 0 && arm_real_position_(0) > workspace_limits_(1)) {
-    arm_desired_twist_(0) = 0;
+  if (arm_desired_twist_final_(0) > 0 && arm_real_position_(0) > workspace_limits_(1)) {
+    arm_desired_twist_final_(0) = 0;
   }
 
-  if (arm_desired_twist_(1) < 0 && arm_real_position_(1) < workspace_limits_(2)) {
-    arm_desired_twist_(1) = 0;
+  if (arm_desired_twist_final_(1) < 0 && arm_real_position_(1) < workspace_limits_(2)) {
+    arm_desired_twist_final_(1) = 0;
   }
 
-  if (arm_desired_twist_(1) > 0 && arm_real_position_(1) > workspace_limits_(3)) {
-    arm_desired_twist_(1) = 0;
+  if (arm_desired_twist_final_(1) > 0 && arm_real_position_(1) > workspace_limits_(3)) {
+    arm_desired_twist_final_(1) = 0;
   }
 
-  if (arm_desired_twist_(2) < 0 && arm_real_position_(2) < workspace_limits_(4)) {
-    arm_desired_twist_(2) = 0;
+  if (arm_desired_twist_final_(2) < 0 && arm_real_position_(2) < workspace_limits_(4)) {
+    arm_desired_twist_final_(2) = 0;
   }
 
-  if (arm_desired_twist_(2) > 0 && arm_real_position_(2) > workspace_limits_(5)) {
-    arm_desired_twist_(2) = 0;
+  if (arm_desired_twist_final_(2) > 0 && arm_real_position_(2) > workspace_limits_(5)) {
+    arm_desired_twist_final_(2) = 0;
   }
 
   // velocity of the arm along x, y, and z axis
-  double norm_vel_des = (arm_desired_twist_.segment(0, 3)).norm();
+  double norm_vel_des = (arm_desired_twist_final_.segment(0, 3)).norm();
 
   if (norm_vel_des > arm_max_vel_) {
     ROS_WARN_STREAM_THROTTLE(1, "Admittance generate fast arm movements! velocity norm: " << norm_vel_des);
 
-    arm_desired_twist_.segment(0, 3) *= (arm_max_vel_ / norm_vel_des);
+    arm_desired_twist_final_.segment(0, 3) *= (arm_max_vel_ / norm_vel_des);
 
   }
 

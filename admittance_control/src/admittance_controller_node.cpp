@@ -17,6 +17,7 @@ int main(int argc, char **argv)
   std::string topic_control_wrench;
   std::string topic_equilibrium_desired;
   std::string topic_equilibrium_real;
+  std::string topic_ds_velocity;
   std::string topic_external_wrench_arm_frame;
   std::string topic_control_external_arm_frame;
   std::string topic_admittance_ratio;
@@ -83,6 +84,11 @@ int main(int argc, char **argv)
 
   if (!nh.getParam("topic_equilibrium_real", topic_equilibrium_real)) {
     ROS_ERROR("Couldn't retrieve the topic name for the  real equilibrium point.");
+    return -1;
+  }
+
+  if (!nh.getParam("topic_ds_velocity", topic_ds_velocity)) {
+    ROS_ERROR("Couldn't retrieve the topic name for the DS velocity.");
     return -1;
   }
 
@@ -213,6 +219,7 @@ int main(int argc, char **argv)
     topic_admittance_ratio,
     topic_equilibrium_desired,
     topic_equilibrium_real,
+    topic_ds_velocity,
     M_p, M_a, D, D_p, D_a, K, d_e,
     workspace_limits,
     arm_max_vel, arm_max_acc,

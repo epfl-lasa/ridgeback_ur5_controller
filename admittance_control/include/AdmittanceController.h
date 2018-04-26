@@ -5,6 +5,7 @@
 
 #include "cartesian_state_msgs/PoseTwist.h"
 #include "geometry_msgs/WrenchStamped.h"
+#include "geometry_msgs/TwistStamped.h"
 #include "nav_msgs/Odometry.h"
 #include "sensor_msgs/LaserScan.h"
 #include "laser_geometry/laser_geometry.h"
@@ -104,6 +105,8 @@ protected:
   ros::Subscriber sub_equilibrium_desired_;
   // Subscriber for the admittance ratio
   ros::Subscriber sub_admittance_ratio_;
+  // Subscriber for the DS desired velocity
+  ros::Subscriber sub_ds_velocity_;
 
 
   // Publishers:
@@ -154,11 +157,17 @@ protected:
   // receiving a new equilibrium from a topic
   Vector3d equilibrium_new_;
 
+  // arm desired velocity based on DS (or any other velocity input)
+  Vector3d arm_desired_twist_ds_;
+
+  // desired velocity for arm based on admittance
+  Vector6d arm_desired_twist_adm_;
 
 
   // OUTPUT COMMANDS
+  // final arm desired velocity 
+  Vector6d arm_desired_twist_final_;
   // the desired velcoities computed by the admittance control
-  Vector6d arm_desired_twist_;
   Vector6d platform_desired_twist_;
 
   // limiting the workspace of the arm
@@ -239,6 +248,9 @@ protected:
 
   void admittance_ratio_callback(const std_msgs::Float32Ptr msg);
 
+  void ds_velocity_callback(const geometry_msgs::TwistStampedPtr msg);
+
+
 
 public:
   AdmittanceController(ros::NodeHandle &n, double frequency,
@@ -255,6 +267,7 @@ public:
                        std::string topic_admittance_ratio,
                        std::string topic_equilibrium_deisred,
                        std::string topic_equilibrium_real,
+                       std::string topic_ds_velocity,
                        std::vector<double> M_p,
                        std::vector<double> M_a,
                        std::vector<double> D,

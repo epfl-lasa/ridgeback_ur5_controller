@@ -37,6 +37,9 @@
   <!-- An output topic that can be used to visualize equilibrium point (real equilibrium might differ from the desired one)-->
   <arg name="TOPIC_EQUILIBRIUM_REAL" default="/admittance_control/equilibrium_real" />
 
+  <!-- An input topic to receive desired velocity from DS only the linear motion-->
+  <arg name="TOPIC_DS_VELOCITY" default="/ds_desired_velocity" />
+
 
   <!-- The received wrench by the FT-sensor and the controller will be published for dubugging/visualization -->
   <!-- They will be specified in ur5_arm_base_link -->
@@ -73,6 +76,7 @@
     <param name="topic_control_wrench"             value="$(arg TOPIC_CONTROL_WRENCH)"           />
     <param name="topic_equilibrium_desired"        value="$(arg TOPIC_EQUILIBRIUM_DESIRED)"      />
     <param name="topic_equilibrium_real"           value="$(arg TOPIC_EQUILIBRIUM_REAL)"         />
+    <param name="topic_ds_velocity"                value="$(arg TOPIC_DS_VELOCITY)"              />
     <param name="topic_external_wrench_arm_frame"  value="$(arg TOPIC_EXTERNAL_WRENCH_ARM_FRAME)"/>
     <param name="topic_control_external_arm_frame" value="$(arg TOPIC_CONTROL_WRENCH_ARM_FRAME)" />
     <param name="topic_admittance_ratio"           value="$(arg TOPIC_AMITTANCE_RATIO)"          />
