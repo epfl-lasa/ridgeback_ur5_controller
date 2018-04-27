@@ -482,7 +482,7 @@ void AdmittanceController::limit_to_workspace() {
 
 
   arm_desired_twist_final_ = arm_desired_twist_adm_;
-  arm_desired_twist_final_.segment(0,3) += arm_desired_twist_ds_;
+  arm_desired_twist_final_.segment(0,3) += (1- admittance_ratio_) * arm_desired_twist_ds_;
 
   if (arm_desired_twist_final_(0) < 0 && arm_real_position_(0) < workspace_limits_(0)) {
     arm_desired_twist_final_(0) = 0;
