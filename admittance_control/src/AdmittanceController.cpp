@@ -344,13 +344,14 @@ void AdmittanceController::wrench_control_callback(
                     msg->wrench.torque.x, msg->wrench.torque.y, msg->wrench.torque.z;
   }
   else  {
-    ROS_WARN_THROTTLE(5, "The frame_id is not specified as ur5_arm_base_link");
+    ROS_WARN_THROTTLE(5, "wrench_control_callback: The frame_id is not specified as ur5_arm_base_link");
   }
 }
 
 void AdmittanceController::ds_velocity_callback(const geometry_msgs::TwistStampedPtr msg) {
 
   arm_desired_twist_ds_ << msg->twist.linear.x , msg->twist.linear.y , msg->twist.linear.z ;
+  // ROS_INFO_STREAM_THROTTLE(1,"received velocity, z:" << arm_desired_twist_ds_(2));
 
 }
 void AdmittanceController::equilibrium_callback(const geometry_msgs::PointPtr msg) {
@@ -482,7 +483,8 @@ void AdmittanceController::limit_to_workspace() {
 
 
   arm_desired_twist_final_ = arm_desired_twist_adm_;
-  arm_desired_twist_final_.segment(0,3) += (1- admittance_ratio_) * arm_desired_twist_ds_;
+  // arm_desired_twist_final_.segment(0,3) += (1- admittance_ratio_) * arm_desired_twist_ds_;
+  arm_desired_twist_final_.segment(0,3) += arm_desired_twist_ds_;
 
   if (arm_desired_twist_final_(0) < 0 && arm_real_position_(0) < workspace_limits_(0)) {
     arm_desired_twist_final_(0) = 0;
