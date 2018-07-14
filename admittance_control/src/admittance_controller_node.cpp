@@ -40,7 +40,8 @@ int main(int argc, char **argv)
   double force_dead_zone_thres;
   double torque_dead_zone_thres;
 
-
+  std::string topic_object_ee_pose_mocap_world;
+  std::string topic_mid_pc_pose_mocap_world;
   std::vector<double> M_obj_imp;
   std::vector<double> D_obj_imp;
   std::vector<double> K_obj_imp;
@@ -111,6 +112,22 @@ int main(int argc, char **argv)
     ROS_ERROR("Couldn't retrieve the topic name for the EE twist in the world frame.");
     return -1;
   }
+
+
+  // --------------------------------------------------------------------------------------
+   
+  if (!nh.getParam("topic_object_ee_pose_mocap_world", topic_object_ee_pose_mocap_world)) {
+    ROS_ERROR("Couldn't retrieve the topic name for the EE object pose in mocap world.");
+    return -1;
+  }
+
+  if (!nh.getParam("topic_mid_pc_pose_mocap_world", topic_mid_pc_pose_mocap_world)) {
+    ROS_ERROR("Couldn't retrieve the topic name for the EE object pose in mocap world.");
+    return -1;
+  }
+
+  // -----------------------------------------------------------------------------------
+
 
   // ADMITTANCE PARAMETERS
   if (!nh.getParam("mass_platform", M_p)) {
@@ -196,6 +213,7 @@ int main(int argc, char **argv)
 
   // OBJECT ADMITTANCE, POSTURE AND ESTIMATOR GAINS
 
+
   if (!nh.getParam("object_impedance_inertia", M_obj_imp)) {
     ROS_ERROR("Couldn't retrieve the desired object impedance inertia matrix. ");
     return -1;
@@ -251,6 +269,8 @@ int main(int argc, char **argv)
                                               force_dead_zone_thres,
                                               torque_dead_zone_thres,
 
+                                              topic_object_ee_pose_mocap_world,
+                                              topic_mid_pc_pose_mocap_world,
                                               M_obj_imp,
                                               D_obj_imp, 
                                               K_obj_imp,

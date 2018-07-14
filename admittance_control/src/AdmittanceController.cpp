@@ -30,6 +30,8 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
     double force_dead_zone_thres, 
     double torque_dead_zone_thres,
 
+    std::string topic_object_ee_pose_mocap_world,
+    std::string topic_mid_pc_pose_mocap_world,
     std::vector<double> M_obj_imp,
     std::vector<double> D_obj_imp,
     std::vector<double> K_obj_imp,
@@ -79,9 +81,13 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
   //                                     &AdmittanceController::desired_platform_velocity_callback, this,
   //                                     ros::TransportHints().reliable().tcpNoDelay());
 
-  // sub_desired_platform_velocity = nh_.subscribe("topic_desired_platform_velocity", 5,
-                                      // &AdmittanceController::desired_platform_velocity_callback);
+  sub_object_ee_pose_mocap_world = nh_.subscribe(topic_object_ee_pose_mocap_world, 10,
+                                   &AdmittanceController::object_ee_pose_world_callback, this,
+                                   ros::TransportHints().reliable().tcpNoDelay());
 
+  sub_mid_pc_pose_mocap_world = nh_.subscribe(topic_mid_pc_pose_mocap_world, 10,
+                                   &AdmittanceController::mid_pc_pose_mocap_world_callback, this,
+                                   ros::TransportHints().reliable().tcpNoDelay());
 
 
   // Publishers
@@ -224,9 +230,29 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
   v_arm_platform_torque.setZero();                  // torque of the virtual (apparent) arm-platform dynamics
 
   // 
-  obj_real_position_world     = arm_real_position_;     // USE FOR NOW THE ARM POSITION (OBJECT COINCIDE WITH THE PALM)
-  obj_real_orientation_world  = arm_real_orientation_;  // To be initialized to the equilibrium orientation
+  obj_real_position_world.setZero();     // USE FOR NOW THE ARM POSITION (OBJECT COINCIDE WITH THE PALM)
+  obj_real_orientation_world = Eigen::Quaterniond(Eigen::Matrix3d::Identity());  // To be initialized to the equilibrium orientation
+
+  while (nh_.ok() && !obj_real_position_world(0)) {
+    ROS_WARN_THROTTLE(1, "Waiting for grasped object pose in mocap world...");
+    ros::spinOnce();
+    loop_rate_.sleep();
+  }
   obj_real_twist_world.setZero();
+
+
+  // mid_pc
+  mid_pc_position_mocap_world.setZero();
+  mid_pc_orientation_mocap_world = Eigen::Quaterniond(Eigen::Matrix3d::Identity());
+
+  while (nh_.ok() && !mid_pc_position_mocap_world(0)) {
+    ROS_WARN_THROTTLE(1, "Waiting for mid pic pose in mocap world...");
+    ros::spinOnce();
+    loop_rate_.sleep();
+  }
+  // Rotation from platform to world
+  Rot_platform2world.setIdentity();   // set to identity for a time
+  Rot_platform2world = mid_pc_orientation_mocap_world.normalized().toRotationMatrix();
 
 
   // reference trajectory of the object  (from a DS)
@@ -242,8 +268,7 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
   Rot_real_obj_world_previous      = obj_real_orientation_world.normalized().toRotationMatrix();
 
   // 
-  // Rotation from platform to world
-  Rot_platform2world.setIdentity();   // set to identity for a time
+  
 
   // Rotation from arm_base to world
   Rot_arm_base2world = Rot_platform2world * rotation_base_.block<3,3>(0,0);
@@ -281,7 +306,7 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
 
   // Activation of the object augmented inverse dynamics
   // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-  useInverseDynamics = false;
+  useInverseDynamics = true;
 
   // ==========================================================================================
 
@@ -360,22 +385,22 @@ void AdmittanceController::compute_admittance() {
   //                            + wrench_external_ + wrench_control_);
 
   // update the virtual control wrench for the apparent dynamics
-      AdmittanceController::compute_virtual_torques();
-      // compute the desired accelaration 
-      v_arm_platform_desired_acceleration = Inverse_M_vap * (v_arm_platform_torque + v_Jacobian_arm.transpose() * 1.0* Rot_arm_base2world6x6 * wrench_external_ - v_bias_forces);
+      // AdmittanceController::compute_virtual_torques();
+      // // compute the desired accelaration 
+      // v_arm_platform_desired_acceleration = Inverse_M_vap * (v_arm_platform_torque + v_Jacobian_arm.transpose() * 1.0* Rot_arm_base2world6x6 * wrench_external_ - v_bias_forces);
 
   if (useInverseDynamics)
   {
-      // // update the virtual control wrench for the apparent dynamics
-      // AdmittanceController::compute_virtual_torques();
+      // update the virtual control wrench for the apparent dynamics
+      AdmittanceController::compute_virtual_torques();
 
-      // // compute the desired accelaration 
-      // v_arm_platform_desired_acceleration = Inverse_M_vap * (v_arm_platform_torque + v_Jacobian_arm.transpose() * Rot_arm_base2world6x6* wrench_external_ - v_bias_forces);
+      // compute the desired accelaration 
+      v_arm_platform_desired_acceleration = Inverse_M_vap * (v_arm_platform_torque + v_Jacobian_arm.transpose() * Rot_arm_base2world6x6* wrench_external_ - v_bias_forces);
 
       // Extracting the platform and the arm desired acceleration
-      platform_desired_acceleration = 0.0*v_arm_platform_desired_acceleration.segment(0, 6);
+      platform_desired_acceleration = 0.5*v_arm_platform_desired_acceleration.segment(0, 6);
 
-      arm_desired_accelaration      = 0.0*v_arm_platform_desired_acceleration.segment(6, 6);
+      arm_desired_accelaration      = 0.5*kin_constraints_ * v_arm_platform_desired_acceleration.segment(6, 6);
 
   }
   else
@@ -389,7 +414,10 @@ void AdmittanceController::compute_admittance() {
   
   // std::cout << " ee_pose_world_ is :\n" << ee_pose_world_ << std::endl;
   // std::cout << " ee_twist_world_ is :\n" << ee_twist_world_ << std::endl;
+
   // std::cout << " error is :\n" << error << std::endl;
+  //  std::cout << " wrench_external_ is :\n" << wrench_external_ << std::endl;
+  //  std::cout << " internal_force_contribution is : \n"<< internal_force_contribution << std::endl; 
 
   // std::cout << " v_arm_desired_acceleration is :\n" << v_arm_platform_desired_acceleration.segment(0, 6) << std::endl;
   // std::cout << " arm_desired_accelaration is :\n" << arm_desired_accelaration << std::endl;
@@ -422,7 +450,11 @@ void AdmittanceController::compute_admittance() {
 
   // added
   // std::cout << " platform_desired_twist_ after is :\n " << platform_desired_twist_<< std::endl;
-  // std::cout << " arm_desired_twist_ after is :\n " << arm_desired_twist_<< std::endl;
+  // std::cout << " arm_desired_twist_ after is :\n " << arm_desired_twist_<< std::endl;  
+  
+  // std::cout << " Rot_real_obj_world_previous after is :\n " << Rot_real_obj_world_previous << std::endl;
+  // std::cout << " Rot_platform2world after is :\n " << Rot_platform2world << std::endl;
+
 
 }
 
@@ -563,6 +595,8 @@ void AdmittanceController::equilibrium_callback(const geometry_msgs::PointPtr ms
                              equilibrium_position_(2)   );
 
 }
+
+
 
 // New Added
 // void AdmittanceController::desired_platform_velocity_callback(const geometry_msgs::Twist msg) {
@@ -863,6 +897,35 @@ void AdmittanceController::publish_debuggings_signals() {
 // ==========================================================================================================================
 // ==========================================================================================================================
 
+// eeObject_pose_world_callback
+
+void AdmittanceController::object_ee_pose_world_callback(const geometry_msgs::PoseStampedConstPtr msg) 
+{
+  obj_real_position_world << msg->pose.position.x, 
+                             msg->pose.position.y,
+                             msg->pose.position.z;
+
+  obj_real_orientation_world.coeffs() << msg->pose.orientation.x,
+                                         msg->pose.orientation.y,
+                                         msg->pose.orientation.z,
+                                         msg->pose.orientation.w;
+
+}
+
+void AdmittanceController::mid_pc_pose_mocap_world_callback(const geometry_msgs::PoseStampedConstPtr msg) 
+{
+  mid_pc_position_mocap_world << msg->pose.position.x, 
+                                 msg->pose.position.y,
+                                 msg->pose.position.z;
+
+  mid_pc_orientation_mocap_world.coeffs() << msg->pose.orientation.x,
+                                             msg->pose.orientation.y,
+                                             msg->pose.orientation.z,
+                                             msg->pose.orientation.w;
+
+}
+
+
 // methods for the virtual dynamics
 void AdmittanceController::compute_object_twist()
 {
@@ -1002,21 +1065,17 @@ void AdmittanceController::compute_virtual_torques()
   // getting the sampling time
     ros::Duration duration = loop_rate_.expectedCycleTime();
 
-    // std::cout << " M_obj_imp_ is : \n"<< M_obj_imp_ << std::endl;
-    // std::cout << " D_obj_imp_ is : \n"<< D_obj_imp_ << std::endl;
-    // std::cout << " K_obj_imp_ is : \n"<< K_obj_imp_ << std::endl;
-
     // Rotation from arm_base to world
+    Rot_platform2world = mid_pc_orientation_mocap_world.normalized().toRotationMatrix();
     Rot_arm_base2world = Rot_platform2world * rotation_base_.block<3,3>(0,0);
 
     
-
     // rotation matrix from arm base to world frame
     Rot_arm_base2world6x6.block<3,3>(0,0) = Rot_arm_base2world;
     Rot_arm_base2world6x6.block<3,3>(3,3) = Rot_arm_base2world;
 
-  // Object State error with respect to the world frame
-  // ====================
+    // Object State error with respect to the world frame
+    // ====================
     Vector6d obj_pose_error_world;                      // between current and desired eef pose
 
     // Orientation error w.r.t. desired equilibriums
@@ -1036,11 +1095,10 @@ void AdmittanceController::compute_virtual_torques()
     obj_pose_error_world.topRows(3)    = obj_real_position_world - obj_reference_position_world;
     obj_pose_error_world.bottomRows(3) = obj_des_orient_error.axis() * obj_des_orient_error.angle();
 
+    
     // object twist error 
     Vector6d obj_twist_error_world  = obj_real_twist_world - obj_reference_twist_world;   // error between current and desired twist of the object
-
     
-
   // Posture state error
   // --------------------
     // pose state error
@@ -1066,13 +1124,12 @@ void AdmittanceController::compute_virtual_torques()
     v_arm_platform_posture_error.segment(3, 3) = err_arm_des_orient.axis() * err_arm_des_orient.angle();
     // v_arm_platform_posture_error.segment(6, 3) << 0.0, 0.0, 0.0;                         
     // v_arm_platform_posture_error.segment(9, 3) << 0.0, 0.0, 0.0;
+
+    // posture velocity twist
+    Vector12d v_arm_platform_posture_twist;
+    v_arm_platform_posture_twist.setZero();
+    v_arm_platform_posture_twist.head(6) = arm_desired_twist_;
     
-    // velocity twist
-    //Vector6d v_arm_platform_desired_twist;
-    // v_arm_platform_desired_twist.setZero();
-    // v_arm_platform_desired_twist.segment(0, 6) = arm_desired_twist_;
-
-
   // Task space dynamics
   // ====================
     
@@ -1136,7 +1193,7 @@ void AdmittanceController::compute_virtual_torques()
   // compute the generalized forces
   // ===============================
   // estimate the internal force contribution
-  Vector6d measured_Wrench = 0.0*wrench_external_;
+  Vector6d measured_Wrench = Rot_arm_base2world6x6 * wrench_external_;
   AdmittanceController::estimate_internal_wrench(measured_Wrench);
 
   Vector6d object_generalized_force = obj_augmented_inertia * (obj_reference_acceleration_world - M_obj_imp_.inverse() * (D_obj_imp_ * obj_twist_error_world + K_obj_imp_ * obj_pose_error_world))
@@ -1148,9 +1205,9 @@ void AdmittanceController::compute_virtual_torques()
   // -------------------------------------------------------------
   // posture reference acceleration
 
-  // Vector12d v_desired_posture_accel = - K_posture_.asDiagonal() * v_arm_platform_posture_error 
+  // Vector12d v_desired_posture_accel = - K_posture_.asDiagonal() * v_arm_platform_posture_error  D_ * (arm_desired_twist_)
   //                  - D_posture_.asDiagonal() * v_arm_platform_desired_twist;
-  Vector12d v_desired_posture_torque = -1.0* K_posture_.asDiagonal() * v_arm_platform_posture_error;
+  Vector12d v_desired_posture_torque = -1.0* K_posture_.asDiagonal() * v_arm_platform_posture_error - D_posture_.asDiagonal() * v_arm_platform_posture_twist;
 
   //posture torque                  
   //Vector12d v_posture_torque = M_vap * v_desired_posture_accel + v_bias_forces;
@@ -1160,6 +1217,11 @@ void AdmittanceController::compute_virtual_torques()
   // compute the overall torque
   // ==========================
   v_arm_platform_torque = Jacobian_object.transpose() * object_generalized_force + 0.0*Nullspace_Jacobian_obj * v_posture_torque;
+
+  
+  // std::cout << " object_generalized_force is : \n"<< object_generalized_force << std::endl;
+  // std::cout << " Inverse_M_vap *v_bias_forces is : \n"<< Inverse_M_vap *v_bias_forces << std::endl;
+  // std::cout << " obj_pose_error_world is : \n"<< obj_pose_error_world << std::endl; 
 
 
   //std::cout << " v_arm_platform_posture_error.segment(0, 6) is : \n"<< v_arm_platform_posture_error.segment(0, 6) << std::endl; 

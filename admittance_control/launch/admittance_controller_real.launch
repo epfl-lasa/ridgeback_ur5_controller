@@ -48,6 +48,11 @@
   <arg name="TOPIC_ARM_TWIST_WORLD" default="/admittance_control/ee_twist_world" />
 
 
+  <!-- receive the grasped object pose with respect to the wordl frame defined by the mocap vision system -->
+  <arg name="TOPIC_OBJECT_EE_POSE_MOCAP_WORLD"  default="/cpr_palm/pose"  />
+  <arg name="TOPIC_MID_PC_POSE_MOCAP_WORLD"  default="/cpr_mid_pc/pose"  />
+
+
 
   <!-- Different wiring in case of running the obstacle avoidance -->
   <arg if="$(arg FLAG_obstacle_avoidance)" 
@@ -76,6 +81,9 @@
     <param name="wrench_filter_factor"             value="$(arg WRENCH_FILTER_FACTOR)"           />
     <param name="force_dead_zone_thres"            value="$(arg FORCE_DEAD_ZONE_THRES)"          />
     <param name="torque_dead_zone_thres"           value="$(arg TORQUE_DEAD_ZONE_THRES)"         />
+
+    <param name="topic_object_ee_pose_mocap_world" value="$(arg TOPIC_OBJECT_EE_POSE_MOCAP_WORLD)"  />
+    <param name="topic_mid_pc_pose_mocap_world"    value="$(arg TOPIC_MID_PC_POSE_MOCAP_WORLD)"     />
 
     <rosparam file="$(arg ADMITTANCE_PARAMS_FILE)" command="load"/>
 

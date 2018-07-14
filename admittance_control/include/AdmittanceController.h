@@ -9,6 +9,8 @@
 #include "geometry_msgs/Twist.h"
 #include "sensor_msgs/LaserScan.h"
 #include "laser_geometry/laser_geometry.h"
+#include "geometry_msgs/PoseStamped.h"
+
 #include <tf/transform_datatypes.h>
 #include <tf_conversions/tf_eigen.h>
 #include <tf/transform_listener.h>
@@ -106,6 +108,12 @@ protected:
   ros::Subscriber sub_wrench_control_;
   // Subscriber for the offset of the attractor
   ros::Subscriber sub_equilibrium_desired_;
+
+  // Subscriber for the grasped object pose in world defined by mocap
+  ros::Subscriber sub_object_ee_pose_mocap_world;
+
+  // Subscriber for the mid pc pose in world defined by mocap
+  ros::Subscriber sub_mid_pc_pose_mocap_world;
 
   
 
@@ -206,14 +214,16 @@ protected:
   bool base_world_ready_;
   bool world_arm_ready_;
 
+  // ============================================================================================================
+
   // parameters for the apparent dynamics of the arm-platform system
+
   // ===============================================================
 
   Matrix12d M_vap, D_vap;       // virtual impedance
   Matrix12_6d K_vap;
   //Matrix6d  M_obj_, D_obj_, K_obj;  // object impedance
   Matrix6_12d v_Jacobian_arm;
-
   Matrix6_12d v_Jacobian_platform;
   //
   MatrixXd Inverse_M_vap;  // inverse of the virtual inertia matrix
@@ -259,24 +269,25 @@ protected:
   //
   // rotation matrix of the object wrt to the world frame
   Eigen::Matrix3d Rot_real_obj_world_previous;
- 
   // position vector of the object in the world frame
   Eigen::Vector3d obj_real_position_world_previous;
 
   // Object task Jacobian
   Matrix6_12d Jacobian_object_previous;
-
   // 
   Vector6d internal_force_contribution;
-
   // virtual arm platform torque
   Vector12d v_arm_platform_torque;
 
   // grasp matrix
   Vector3d end_eff_position_in_object;  // Position of the end-effector in  the object frame // from the initialization file
   Matrix3d Rot_arm_base2world;
-
   Matrix6d Rot_arm_base2world6x6;
+
+
+  // information about the platfrom in mocap world
+  Vector3d mid_pc_position_mocap_world;
+  Quaterniond mid_pc_orientation_mocap_world;
   
  
   // Usefull rotation matrices
@@ -350,7 +361,11 @@ protected:
 
   void equilibrium_callback(const geometry_msgs::PointPtr msg);
 
-  void desired_platform_velocity_callback(const geometry_msgs::Twist msg);
+  //void desired_platform_velocity_callback(const geometry_msgs::Twist msg);
+
+  void object_ee_pose_world_callback(const geometry_msgs::PoseStampedConstPtr msg);
+
+  void mid_pc_pose_mocap_world_callback(const geometry_msgs::PoseStampedConstPtr msg);
 
 public:
     AdmittanceController(ros::NodeHandle &n, double frequency,
@@ -382,6 +397,8 @@ public:
                          double force_dead_zone_thres,
                          double torque_dead_zone_thres,
 
+                        std::string topic_object_ee_pose_mocap_world,
+                        std::string topic_mid_pc_pose_mocap_world,
                         std::vector<double> M_obj_imp,
                         std::vector<double> D_obj_imp,
                         std::vector<double> K_obj_imp,
