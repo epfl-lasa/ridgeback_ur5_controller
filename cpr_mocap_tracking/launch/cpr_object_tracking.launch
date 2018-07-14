@@ -28,7 +28,7 @@
     <param name="frame_mocap_object"      value="mocap_object"/>
 
     <node name="object_tracking_node"
-          pkg ="cpr_load_support"
+          pkg ="cpr_mocap_tracking"
           type="object_tracking_node"
           output="screen">
     </node>

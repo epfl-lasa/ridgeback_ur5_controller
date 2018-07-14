@@ -6,6 +6,7 @@
 #include "cartesian_state_msgs/PoseTwist.h"
 #include "geometry_msgs/WrenchStamped.h"
 #include "nav_msgs/Odometry.h"
+#include "geometry_msgs/Twist.h"
 #include "sensor_msgs/LaserScan.h"
 #include "laser_geometry/laser_geometry.h"
 #include <tf/transform_datatypes.h>
@@ -78,6 +79,11 @@ typedef Matrix<double, 7, 1> Vector7d;
 typedef Matrix<double, 6, 1> Vector6d;
 typedef Matrix<double, 6, 6> Matrix6d;
 
+typedef Matrix<double, 12, 12> Matrix12d;
+typedef Matrix<double, 12, 6> Matrix12_6d;
+typedef Matrix<double, 6, 12> Matrix6_12d;
+typedef Matrix<double, 12, 1> Vector12d;
+
 class AdmittanceController
 {
 protected:
@@ -100,6 +106,8 @@ protected:
   ros::Subscriber sub_wrench_control_;
   // Subscriber for the offset of the attractor
   ros::Subscriber sub_equilibrium_desired_;
+
+  
 
 
   // Publishers:
@@ -155,6 +163,7 @@ protected:
   // the desired velcoities computed by the admittance control
   Vector6d arm_desired_twist_;
   Vector6d platform_desired_twist_;
+  Vector6d desired_platform_velocity_;
 
   // limiting the workspace of the arm
   Vector6d workspace_limits_;
@@ -185,8 +194,6 @@ protected:
   // Derivative of kinematic constraints between the arm and the platform
   Matrix6d kin_constraints_;
 
-
-
   // TF:
   // Listeners
   tf::TransformListener listener_ft_;
@@ -198,6 +205,117 @@ protected:
   bool arm_world_ready_;
   bool base_world_ready_;
   bool world_arm_ready_;
+
+  // parameters for the apparent dynamics of the arm-platform system
+  // ===============================================================
+
+  Matrix12d M_vap, D_vap;       // virtual impedance
+  Matrix12_6d K_vap;
+  //Matrix6d  M_obj_, D_obj_, K_obj;  // object impedance
+  Matrix6_12d v_Jacobian_arm;
+
+  Matrix6_12d v_Jacobian_platform;
+  //
+  MatrixXd Inverse_M_vap;  // inverse of the virtual inertia matrix
+
+// 
+  Vector12d v_bias_forces;
+  Vector12d v_arm_platform_desired_acceleration;
+  Vector12d v_arm_platform_desired_twist;
+  Vector12d v_arm_platform_control_wrench;
+
+// object impedance Gain Matrices
+  Matrix6d M_obj_imp_;                // virtual intertia
+  Matrix6d D_obj_imp_;                // virtual damping
+  Matrix6d K_obj_imp_;                // virtual stiffness
+  // robot Posture Gain matrices
+  Vector12d K_posture_;               // stiffness gain 
+  Vector12d D_posture_;               // damping gain
+
+  // Internal Wrench Estimator
+  Matrix6d K_estimator_;               // gaim matrix estimator
+
+  //Vector6d measured_Wrench;           // measured wrench at the end-effector
+
+  // object dynamics variables view from the mobile manipulator
+  Matrix6d obj_inertiaMx;
+  Vector6d obj_bias_forces;
+  Matrix6d distributed_obj_inertiaMx;
+  Vector6d distributed_obj_bias_forces; 
+
+  // reference object trajectory
+  // ---------------------------
+  Eigen::Vector3d obj_reference_position_world;
+  Eigen::Quaterniond obj_reference_orientation_world;
+  Vector6d obj_reference_twist_world;
+  Vector6d obj_reference_acceleration_world;
+
+  // object real state
+  // -----------------
+  Eigen::Vector3d obj_real_position_world;           //  from the object state callback function
+  Eigen::Quaterniond obj_real_orientation_world;     //  from the object state callback function
+  // velocity twist
+  Vector6d obj_real_twist_world;
+  //
+  // rotation matrix of the object wrt to the world frame
+  Eigen::Matrix3d Rot_real_obj_world_previous;
+ 
+  // position vector of the object in the world frame
+  Eigen::Vector3d obj_real_position_world_previous;
+
+  // Object task Jacobian
+  Matrix6_12d Jacobian_object_previous;
+
+  // 
+  Vector6d internal_force_contribution;
+
+  // virtual arm platform torque
+  Vector12d v_arm_platform_torque;
+
+  // grasp matrix
+  Vector3d end_eff_position_in_object;  // Position of the end-effector in  the object frame // from the initialization file
+  Matrix3d Rot_arm_base2world;
+
+  Matrix6d Rot_arm_base2world6x6;
+  
+ 
+  // Usefull rotation matrices
+  // ---------------------------------
+  // Rotation from platform to world
+  Eigen::Matrix3d Rot_platform2world;
+
+   // Activation of the projected inverse dynamics
+  bool useInverseDynamics;    
+
+  // ================================================================
+      // methods to compute the object twist from the pose measurements
+  void compute_object_twist();
+
+      //  method to to compute the  grasp matrix of the object 
+      // that maps wrench in the world frame to wrench the arm base frame
+  Matrix6d get_grasp_matrix(Vector3d end_eff_position_in_object,  // Position of the end-effector in  the object frame // from the initialization file
+                            Matrix3d Rot_arm_base2world, 
+                            Matrix3d Rot_end_eff2arm_base);
+
+  // compute the virtual arm Jacobian
+  Matrix6_12d get_virtual_arm_Jacobian(Matrix3d Rot_arm_base2world,
+                                       Vector3d arm_real_position_);
+
+  // // compute the sub-matrix of v_Jacobian_arm related to the platform
+  Matrix6_12d get_virtual_platform_Jacobian(Matrix3d Rot_arm_base2world,
+                                            Vector3d arm_real_position_);
+
+
+  // Estimation of the internal wrench contribution
+  // It is based on disturbance observer and uses the measured wrench at the end-effector
+  void estimate_internal_wrench(Vector6d measured_Wrench); 
+
+  
+  // method that compute the virtual arm-platform torque using the inverse of the apparent (virtual) dynamics
+  void compute_virtual_torques();
+
+ 
+  // ================================================================
 
   // Initialization
   void wait_for_transformations();
@@ -232,35 +350,46 @@ protected:
 
   void equilibrium_callback(const geometry_msgs::PointPtr msg);
 
+  void desired_platform_velocity_callback(const geometry_msgs::Twist msg);
+
 public:
-  AdmittanceController(ros::NodeHandle &n, double frequency,
-                       std::string cmd_topic_platform,
-                       std::string state_topic_platform,
-                       std::string cmd_topic_arm,
-                       std::string topic_arm_pose_world,
-                       std::string topic_arm_twist_world,
-                       std::string topic_wrench_u_e,
-                       std::string topic_wrench_u_c,
-                       std::string state_topic_arm,
-                       std::string wrench_topic,
-                       std::string wrench_control_topic,
-                       std::string topic_equilibrium_deisred,
-                       std::string topic_equilibrium_real,
-                       std::vector<double> M_p,
-                       std::vector<double> M_a,
-                       std::vector<double> D,
-                       std::vector<double> D_p,
-                       std::vector<double> D_a,
-                       std::vector<double> K,
-                       std::vector<double> d_e,
-                       std::vector<double> workspace_limits,
-                       double arm_max_vel,
-                       double arm_max_acc,
-                       double platform_max_vel,
-                       double platform_max_acc,
-                       double wrench_filter_factor,
-                       double force_dead_zone_thres,
-                       double torque_dead_zone_thres);
+    AdmittanceController(ros::NodeHandle &n, double frequency,
+                         std::string cmd_topic_platform,
+                         std::string state_topic_platform,
+                         std::string cmd_topic_arm,
+                         std::string topic_arm_pose_world,
+                         std::string topic_arm_twist_world,
+                         std::string topic_wrench_u_e,
+                         std::string topic_wrench_u_c,
+                         std::string state_topic_arm,
+                         std::string wrench_topic,
+                         std::string wrench_control_topic,
+                         std::string topic_equilibrium_deisred,
+                         std::string topic_equilibrium_real,
+                         std::vector<double> M_p,
+                         std::vector<double> M_a,
+                         std::vector<double> D,
+                         std::vector<double> D_p,
+                         std::vector<double> D_a,
+                         std::vector<double> K,
+                         std::vector<double> d_e,
+                         std::vector<double> workspace_limits,
+                         double arm_max_vel,
+                         double arm_max_acc,
+                         double platform_max_vel,
+                         double platform_max_acc,
+                         double wrench_filter_factor,
+                         double force_dead_zone_thres,
+                         double torque_dead_zone_thres,
+
+                        std::vector<double> M_obj_imp,
+                        std::vector<double> D_obj_imp,
+                        std::vector<double> K_obj_imp,
+                        std::vector<double> D_posture,
+                        std::vector<double> K_posture,
+                        std::vector<double> K_estimator);
+  
+  //ros::Subscriber sub_desired_platform_velocity;
   void run();
 };
 

@@ -41,9 +41,15 @@ int main(int argc, char **argv)
   double torque_dead_zone_thres;
 
 
+  std::vector<double> M_obj_imp;
+  std::vector<double> D_obj_imp;
+  std::vector<double> K_obj_imp;
+  std::vector<double> D_posture;
+  std::vector<double> K_posture;
+  std::vector<double> K_estimator;
+
 
   // LOADING PARAMETERS FROM THE ROS SERVER
-
   // Topic names
   if (!nh.getParam("topic_arm_state", topic_arm_state)) {
     ROS_ERROR("Couldn't retrieve the topic name for the state of the arm.");
@@ -106,7 +112,6 @@ int main(int argc, char **argv)
     return -1;
   }
 
-
   // ADMITTANCE PARAMETERS
   if (!nh.getParam("mass_platform", M_p)) {
     ROS_ERROR("Couldn't retrieve the desired mass platform.");
@@ -142,7 +147,6 @@ int main(int argc, char **argv)
     ROS_ERROR("Couldn't retrieve the desired equilibrium of the spring.");
     return -1;
   }
-
 
 
   // SAFETY PARAMETERS
@@ -190,30 +194,69 @@ int main(int argc, char **argv)
   }
 
 
+  // OBJECT ADMITTANCE, POSTURE AND ESTIMATOR GAINS
+
+  if (!nh.getParam("object_impedance_inertia", M_obj_imp)) {
+    ROS_ERROR("Couldn't retrieve the desired object impedance inertia matrix. ");
+    return -1;
+  }
+
+  if (!nh.getParam("object_impedance_damping", D_obj_imp)) {
+    ROS_ERROR("Couldn't retrieve the desired object impedance damping matrix. ");
+    return -1;
+  }
+
+  if (!nh.getParam("object_impedance_stiffness", K_obj_imp)) {
+    ROS_ERROR("Couldn't retrieve the desired object impedance stiffness matrix. ");
+    return -1;
+  }
+
+  if (!nh.getParam("posture_damping", D_posture)) {
+    ROS_ERROR("Couldn't retrieve the desired posture damping matrix. ");
+    return -1;
+  }
+
+  if (!nh.getParam("posture_stiffness", K_posture)) {
+    ROS_ERROR("Couldn't retrieve the desired posture stiffness matrix. ");
+    return -1;
+  }
+
+  if (!nh.getParam("disturbance_observer_gain", K_estimator)) {
+    ROS_ERROR("Couldn't retrieve the desired disturbance observer gain matrix. ");
+    return -1;
+  }
+
 
   // Constructing the controller
   AdmittanceController admittance_controller(
-    nh,
-    frequency,
-    topic_platform_command,
-    topic_platform_state,
-    topic_arm_command,
-    topic_arm_pose_world,
-    topic_arm_twist_world,
-    topic_external_wrench_arm_frame,
-    topic_control_external_arm_frame,
-    topic_arm_state,
-    topic_external_wrench,
-    topic_control_wrench,
-    topic_equilibrium_desired,
-    topic_equilibrium_real,
-    M_p, M_a, D, D_p, D_a, K, d_e,
-    workspace_limits,
-    arm_max_vel, arm_max_acc,
-    platform_max_vel, platform_max_acc,
-    wrench_filter_factor,
-    force_dead_zone_thres,
-    torque_dead_zone_thres);
+                                              nh,
+                                              frequency,
+                                              topic_platform_command,
+                                              topic_platform_state,
+                                              topic_arm_command,
+                                              topic_arm_pose_world,
+                                              topic_arm_twist_world,
+                                              topic_external_wrench_arm_frame,
+                                              topic_control_external_arm_frame,
+                                              topic_arm_state,
+                                              topic_external_wrench,
+                                              topic_control_wrench,
+                                              topic_equilibrium_desired,
+                                              topic_equilibrium_real,
+                                              M_p, M_a, D, D_p, D_a, K, d_e,
+                                              workspace_limits,
+                                              arm_max_vel, arm_max_acc,
+                                              platform_max_vel, platform_max_acc,
+                                              wrench_filter_factor,
+                                              force_dead_zone_thres,
+                                              torque_dead_zone_thres,
+
+                                              M_obj_imp,
+                                              D_obj_imp, 
+                                              K_obj_imp,
+                                              D_posture, 
+                                              K_posture,
+                                              K_estimator);
 
   // Running the controller
   admittance_controller.run();

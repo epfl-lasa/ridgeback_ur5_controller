@@ -5,17 +5,17 @@
 #  configuration.
 
 rigid_bodies:
-    '2':
+    '3':
         pose: cpr_palm/pose
         pose2d: cpr_palm/ground_pose
         child_frame_id: mocap_palm
         parent_frame_id: mocap_world
-    '1':
+    '2':
         pose: cpr_mid_pc/pose
         pose2d: cpr_mid_pc/ground_pose
         child_frame_id: mocap_mid_pc
         parent_frame_id: mocap_world
-    '3':
+    '1':
         pose: object/pose
         pose2d: object/ground_pose
         child_frame_id: mocap_object

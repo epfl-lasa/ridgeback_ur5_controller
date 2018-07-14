@@ -7,7 +7,7 @@ project(cpr_bringup)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED)
+find_package(catkin REQUIRED COMPONENTS roscpp rospy std_msgs genmsg)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -126,6 +126,7 @@ catkin_package(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
+
 # add_executable(${PROJECT_NAME}_node src/cpr_bringup_node.cpp)
 
 ## Rename C++ executable without prefix
@@ -190,3 +191,7 @@ catkin_package(
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
+
+add_executable(my_velocity_commander src/my_velocity_commander.cpp)
+target_link_libraries(my_velocity_commander ${catkin_LIBRARIES})
+# add_dependencies(my_velocity_commander beginner_tutorials_generate_messages_cpp)

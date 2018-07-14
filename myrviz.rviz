@@ -1,0 +1,416 @@
+Panels:
+  - Class: rviz/Displays
+    Help Height: 78
+    Name: Displays
+    Property Tree Widget:
+      Expanded:
+        - /Global Options1
+        - /Status1
+        - /Grid1
+        - /Grid1/Offset1
+        - /TF1
+        - /TF1/Status1
+        - /TF1/Frames1
+        - /TF1/Frames1/mid_pc_link1
+      Splitter Ratio: 0.822674
+    Tree Height: 895
+  - Class: rviz/Selection
+    Name: Selection
+  - Class: rviz/Tool Properties
+    Expanded:
+      - /2D Pose Estimate1
+      - /2D Nav Goal1
+      - /Publish Point1
+    Name: Tool Properties
+    Splitter Ratio: 0.588679
+  - Class: rviz/Views
+    Expanded:
+      - /Current View1
+    Name: Views
+    Splitter Ratio: 0.5
+  - Class: rviz/Time
+    Experimental: false
+    Name: Time
+    SyncMode: 0
+    SyncSource: ""
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Alpha: 0.5
+      Cell Size: 0.5
+      Class: rviz/Grid
+      Color: 199; 199; 204
+      Enabled: true
+      Line Style:
+        Line Width: 0.03
+        Value: Lines
+      Name: Grid
+      Normal Cell Count: 0
+      Offset:
+        X: 0
+        Y: 0
+        Z: -0.3
+      Plane: XY
+      Plane Cell Count: 20
+      Reference Frame: <Fixed Frame>
+      Value: true
+    - Alpha: 1
+      Class: rviz/RobotModel
+      Collision Enabled: false
+      Enabled: true
+      Links:
+        All Links Enabled: true
+        Expand Joint Details: false
+        Expand Link Details: false
+        Expand Tree: false
+        FT300_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        Link Tree Style: Links in Alphabetic Order
+        arch_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        axle_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        base_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        chassis_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        front_cover_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        front_laser:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        front_left_wheel_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        front_right_wheel_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        front_rocker_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        imu_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        mid_mount:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        rear_cover_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rear_laser:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rear_left_wheel_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rear_right_wheel_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rear_rocker_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        top_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        ur5_arm_base:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        ur5_arm_base_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        ur5_arm_ee_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        ur5_arm_forearm_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        ur5_arm_shoulder_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        ur5_arm_tool0:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        ur5_arm_upper_arm_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        ur5_arm_wrist_1_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        ur5_arm_wrist_2_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        ur5_arm_wrist_3_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+      Name: RobotModel
+      Robot Description: robot_description
+      TF Prefix: ""
+      Update Interval: 0
+      Value: true
+      Visual Enabled: true
+    - Class: rviz/TF
+      Enabled: true
+      Frame Timeout: 15
+      Frames:
+        All Enabled: false
+        FT300_link:
+          Value: false
+        arch_link:
+          Value: false
+        axle_link:
+          Value: false
+        base_link:
+          Value: false
+        chassis_link:
+          Value: false
+        front_cover_link:
+          Value: false
+        front_laser:
+          Value: false
+        front_left_wheel_link:
+          Value: false
+        front_right_wheel_link:
+          Value: false
+        front_rocker_link:
+          Value: false
+        imu_link:
+          Value: false
+        microstrain_link:
+          Value: false
+        mid_mount:
+          Value: false
+        mid_pc_link:
+          Value: true
+        mocap_mid_pc:
+          Value: false
+        mocap_object:
+          Value: false
+        mocap_palm:
+          Value: false
+        mocap_world:
+          Value: false
+        object:
+          Value: true
+        odom:
+          Value: false
+        rear_cover_link:
+          Value: false
+        rear_laser:
+          Value: false
+        rear_left_wheel_link:
+          Value: false
+        rear_right_wheel_link:
+          Value: false
+        rear_rocker_link:
+          Value: false
+        robotiq_force_torque_frame_id:
+          Value: true
+        top_link:
+          Value: false
+        ur5_arm_base:
+          Value: true
+        ur5_arm_base_link:
+          Value: false
+        ur5_arm_ee_link:
+          Value: false
+        ur5_arm_forearm_link:
+          Value: false
+        ur5_arm_shoulder_link:
+          Value: false
+        ur5_arm_tool0:
+          Value: false
+        ur5_arm_tool0_controller:
+          Value: false
+        ur5_arm_upper_arm_link:
+          Value: false
+        ur5_arm_wrist_1_link:
+          Value: false
+        ur5_arm_wrist_2_link:
+          Value: false
+        ur5_arm_wrist_3_link:
+          Value: false
+        velodyne_link:
+          Value: false
+        world:
+          Value: false
+      Marker Scale: 0.5
+      Name: TF
+      Show Arrows: true
+      Show Axes: true
+      Show Names: true
+      Tree:
+        mocap_world:
+          mocap_mid_pc:
+            {}
+          mocap_object:
+            {}
+          mocap_palm:
+            {}
+        world:
+          odom:
+            base_link:
+              chassis_link:
+                axle_link:
+                  front_rocker_link:
+                    front_left_wheel_link:
+                      {}
+                    front_right_wheel_link:
+                      {}
+                  rear_rocker_link:
+                    rear_left_wheel_link:
+                      {}
+                    rear_right_wheel_link:
+                      {}
+                front_cover_link:
+                  {}
+                front_laser:
+                  {}
+                imu_link:
+                  {}
+                rear_cover_link:
+                  {}
+                rear_laser:
+                  {}
+                top_link:
+                  arch_link:
+                    microstrain_link:
+                      {}
+                    velodyne_link:
+                      {}
+              mid_mount:
+                ur5_arm_base_link:
+                  ur5_arm_base:
+                    object:
+                      {}
+                    ur5_arm_tool0_controller:
+                      {}
+                  ur5_arm_shoulder_link:
+                    ur5_arm_upper_arm_link:
+                      ur5_arm_forearm_link:
+                        ur5_arm_wrist_1_link:
+                          ur5_arm_wrist_2_link:
+                            ur5_arm_wrist_3_link:
+                              ur5_arm_ee_link:
+                                FT300_link:
+                                  robotiq_force_torque_frame_id:
+                                    {}
+                              ur5_arm_tool0:
+                                {}
+      Update Interval: 0
+      Value: true
+  Enabled: true
+  Global Options:
+    Background Color: 126; 126; 126
+    Fixed Frame: ur5_arm_base_link
+    Frame Rate: 30
+  Name: root
+  Tools:
+    - Class: rviz/Interact
+      Hide Inactive Objects: true
+    - Class: rviz/MoveCamera
+    - Class: rviz/Select
+    - Class: rviz/FocusCamera
+    - Class: rviz/Measure
+    - Class: rviz/SetInitialPose
+      Topic: /initialpose
+    - Class: rviz/SetGoal
+      Topic: /move_base_simple/goal
+    - Class: rviz/PublishPoint
+      Single click: true
+      Topic: /clicked_point
+  Value: true
+  Views:
+    Current:
+      Class: rviz/Orbit
+      Distance: 2.37998
+      Enable Stereo Rendering:
+        Stereo Eye Separation: 0.06
+        Stereo Focal Distance: 1
+        Swap Stereo Eyes: false
+        Value: false
+      Focal Point:
+        X: 0.840814
+        Y: -0.366266
+        Z: 0.745809
+      Name: Current View
+      Near Clip Distance: 0.01
+      Pitch: 0.385398
+      Target Frame: <Fixed Frame>
+      Value: Orbit (rviz)
+      Yaw: 5.23041
+    Saved: ~
+Window Geometry:
+  Displays:
+    collapsed: false
+  Height: 1176
+  Hide Left Dock: false
+  Hide Right Dock: false
+  QMainWindow State: 000000ff00000000fd00000004000000000000016a0000040efc0200000008fb0000001200530065006c0065006300740069006f006e00000001e10000009b0000006400fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c00610079007301000000280000040e000000dd00fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261000000010000010f0000040efc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a0056006900650077007301000000280000040e000000b000fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e100000197000000030000073f0000003efc0100000002fb0000000800540069006d006501000000000000073f000002f600fffffffb0000000800540069006d00650100000000000004500000000000000000000004ba0000040e00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  Selection:
+    collapsed: false
+  Time:
+    collapsed: false
+  Tool Properties:
+    collapsed: false
+  Views:
+    collapsed: false
+  Width: 1855
+  X: 1745
+  Y: 24

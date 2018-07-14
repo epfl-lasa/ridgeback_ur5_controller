@@ -11,6 +11,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   cartesian_state_msgs
   laser_geometry
+  geometry_msgs
   sensor_msgs
   tf
   tf_conversions
@@ -110,7 +111,7 @@ set(CMAKE_CXX_FLAGS "-O2 -O3 -std=c++11 -Wall")
 catkin_package(
   INCLUDE_DIRS include
 #  LIBRARIES cpr_closed_loop_controller
-  CATKIN_DEPENDS cartesian_state_msgs
+  CATKIN_DEPENDS cartesian_state_msgs geometry_msgs
 #  DEPENDS system_lib
 )
 
