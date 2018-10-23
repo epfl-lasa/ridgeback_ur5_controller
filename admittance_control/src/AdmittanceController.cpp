@@ -109,7 +109,6 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
 
 
 
-
   ROS_INFO_STREAM("Arm max vel:" << arm_max_vel_ << " max acc:" << arm_max_acc_);
   ROS_INFO_STREAM("Platform max vel:" << platform_max_vel_ << " max acc:" << platform_max_acc_);
 
@@ -179,36 +178,26 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
   // varibales for the apparent dynamics of the system
   // ===============================================================================================
   //
-  // Gains
-  // -------
-  // M_obj_imp_;                // virtual intertia
-  // D_obj_imp_;                // virtual damping
-  // K_obj_imp_;                // virtual stiffness
-  // // robot Posture Gain matrices
-  // K_posture_;               // stiffness gain 
-  // D_posture_;               // damping gain
-
-  // // Internal Wrench Estimator
-  // K_estimator_;               // gaim matrix estimator
- 
-  //
-  //
+  iter = 0;
   // virtual inertia matrixss
-  M_vap.block<6,6>(0,0) = M_a_;
-  M_vap.block<6,6>(6,6) = M_p_;
+  M_vap.block<6,6>(0,0) = M_a_;                      
+  M_vap.block<2,2>(6,6) = M_p_.block<2,2>(0,0);
+  M_vap(8,8) = M_p_(5,5);
   // virtual Damping matrix
   D_vap.block<6,6>(0,0) = D_a_;
-  D_vap.block<6,6>(6,6) = D_p_;
+  D_vap.block<2,2>(6,6) = D_p_.block<2,2>(0,0);
+  D_vap(8,8) = D_p_(5,5);
   // virtual Stiffness matrix
+  Matrix6d temp = rotation_base_ * kin_constraints_ * K_;
   K_vap.block<6,6>(0,0) = K_;
-  K_vap.block<6,6>(6,0) = -1.0*rotation_base_ * kin_constraints_ * K_;
+  K_vap.block<2,6>(6,0) = -temp.topRows(2);
+  K_vap.block<1,6>(8,0) = -temp.bottomRows(1);
 
   // interse of the virtual inertia matrix
-
   Inverse_M_vap = M_vap.inverse();
 
-
   // object distributed inertia
+  end_eff_position_in_object.setZero();
   obj_inertiaMx.setZero();
   obj_bias_forces.setZero();
 
@@ -218,21 +207,18 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
   // contribution from the internal wrench
   internal_force_contribution.setZero();
  
-
-
-
   //  initialization of some variables
   v_arm_platform_desired_acceleration.setZero();    // virtual system dynamics acceleration
   v_arm_platform_desired_twist.setZero();           // virtual system dynamics velocity
   v_arm_platform_control_wrench.setZero();          // virtual system control wrench
 
-
   v_arm_platform_torque.setZero();                  // torque of the virtual (apparent) arm-platform dynamics
 
   // 
-  obj_real_position_world.setZero();     // USE FOR NOW THE ARM POSITION (OBJECT COINCIDE WITH THE PALM)
+  obj_real_position_world.setZero();                // USE FOR NOW THE ARM POSITION (OBJECT COINCIDE WITH THE PALM)
   obj_real_orientation_world = Eigen::Quaterniond(Eigen::Matrix3d::Identity());  // To be initialized to the equilibrium orientation
-
+  //
+  // get  the object pose from mocap 
   while (nh_.ok() && !obj_real_position_world(0)) {
     ROS_WARN_THROTTLE(1, "Waiting for grasped object pose in mocap world...");
     ros::spinOnce();
@@ -241,7 +227,7 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
   obj_real_twist_world.setZero();
 
 
-  // mid_pc
+  // get the  mid_pc or platform pose form mocap
   mid_pc_position_mocap_world.setZero();
   mid_pc_orientation_mocap_world = Eigen::Quaterniond(Eigen::Matrix3d::Identity());
 
@@ -257,6 +243,7 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
 
   // reference trajectory of the object  (from a DS)
   // -----------------------------------
+  
   obj_reference_position_world.setZero();
   obj_reference_position_world = obj_real_position_world;
 
@@ -267,9 +254,6 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
   obj_real_position_world_previous = obj_real_position_world;
   Rot_real_obj_world_previous      = obj_real_orientation_world.normalized().toRotationMatrix();
 
-  // 
-  
-
   // Rotation from arm_base to world
   Rot_arm_base2world = Rot_platform2world * rotation_base_.block<3,3>(0,0);
   Rot_arm_base2world6x6.setIdentity();
@@ -278,7 +262,6 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
   Rot_arm_base2world6x6.block<3,3>(3,3) = Rot_arm_base2world;
 
   // Initialization of apparent dynamics Jacobian
-
   // Skew-symmetric matrix of position_arm_world
   //v_Jacobian_arm.resize(6, 12);
   v_Jacobian_arm.setZero();
@@ -301,8 +284,42 @@ AdmittanceController::AdmittanceController(ros::NodeHandle &n,
   arm_real_pose.tail(3) = orientation_arm.axis() * orientation_arm.angle();
 
   //v_bias_forces = D_vap * v_arm_platform_desired_twist + K_vap * arm_real_pose - v_Jacobian_platform.transpose()* 0.0* Rot_arm_base2world6x6*wrench_external_;
-  v_bias_forces = D_vap * v_arm_platform_desired_twist + K_vap * arm_real_pose_error - v_Jacobian_platform.transpose()* 1.0* Rot_arm_base2world6x6 * wrench_external_;
+  v_bias_forces = D_vap * v_arm_platform_desired_twist + K_vap * arm_real_pose_error + v_Jacobian_platform.transpose()* Rot_arm_base2world6x6 * wrench_external_;
 
+  //
+  // take the initial pose as equilibrium for the posture
+  // ----------------------------------------------------
+  initial_posture_ee_position    = arm_real_position_;
+  initial_posture_ee_orientation = arm_real_orientation_.normalized();
+
+  //
+  equilibrium_position_                 = initial_posture_ee_position;
+  equilibrium_position_seen_by_platform = initial_posture_ee_position;
+  equilibrium_orientation_              = initial_posture_ee_orientation;
+
+  // object
+  initial_object_position_world     = obj_real_position_world;
+  initial_object_orientation_world  = obj_real_orientation_world.normalized();
+
+  // maximum linear and angular velocities
+  max_arm_lin_vel = 0.5;
+  max_arm_ang_vel = 0.75;
+  max_platform_lin_vel = 0.05;
+  max_platform_ang_vel = 0.3;
+
+  // update the workspace limits
+  bool updatedWkspace = true;
+
+  if(updatedWkspace)
+  {
+    workspace_limits_(0) = arm_real_position_(0) - 0.15;
+    workspace_limits_(1) = arm_real_position_(0) + 0.15;
+    workspace_limits_(2) = arm_real_position_(1) - 0.15;
+    workspace_limits_(3) = arm_real_position_(1) + 0.15;
+    workspace_limits_(4) = arm_real_position_(2) - 0.15;
+    workspace_limits_(5) = arm_real_position_(2) + 0.15;
+  }
+  
 
   // Activation of the object augmented inverse dynamics
   // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -342,8 +359,6 @@ void AdmittanceController::run() {
 
 }
 
-
-
 ///////////////////////////////////////////////////////////////
 ///////////////////// Admittance Dynamics /////////////////////
 ///////////////////////////////////////////////////////////////
@@ -378,15 +393,18 @@ void AdmittanceController::compute_admittance() {
   error.topRows(3) = arm_real_position_ - equilibrium_position_;
   Vector6d coupling_wrench_arm =  D_ * (arm_desired_twist_) + K_ * error;
 
-  
-  // platform_desired_acceleration = M_p_.inverse() * (- D_p_ * platform_desired_twist_
-  //                                 + rotation_base_ * kin_constraints_ * coupling_wrench_platform);
-  // arm_desired_accelaration = M_a_.inverse() * ( - coupling_wrench_arm - D_a_ * arm_desired_twist_
-  //                            + wrench_external_ + wrench_control_);
+  // 
+  platform_desired_acceleration = M_p_.inverse() * (- D_p_ * platform_desired_twist_
+                                  + rotation_base_ * kin_constraints_ * coupling_wrench_platform);
+  arm_desired_accelaration      = M_a_.inverse() * ( - coupling_wrench_arm - D_a_ * arm_desired_twist_
+                                  + wrench_external_ + wrench_control_);
 
+  std::cout << " arm_desired_accelaration is :\n" << arm_desired_accelaration << std::endl;
+  std::cout << " platform_desired_acceleration is :\n" << platform_desired_acceleration << std::endl;  // 
+ 
   // update the virtual control wrench for the apparent dynamics
       // AdmittanceController::compute_virtual_torques();
-      // // compute the desired accelaration 
+      // // // compute the desired accelaration 
       // v_arm_platform_desired_acceleration = Inverse_M_vap * (v_arm_platform_torque + v_Jacobian_arm.transpose() * 1.0* Rot_arm_base2world6x6 * wrench_external_ - v_bias_forces);
 
   if (useInverseDynamics)
@@ -395,12 +413,14 @@ void AdmittanceController::compute_admittance() {
       AdmittanceController::compute_virtual_torques();
 
       // compute the desired accelaration 
-      v_arm_platform_desired_acceleration = Inverse_M_vap * (v_arm_platform_torque + v_Jacobian_arm.transpose() * Rot_arm_base2world6x6* wrench_external_ - v_bias_forces);
+      v_arm_platform_desired_acceleration = Inverse_M_vap * (1.0*v_arm_platform_torque + v_Jacobian_arm.transpose() * Rot_arm_base2world6x6* wrench_external_ - v_bias_forces);
 
       // Extracting the platform and the arm desired acceleration
-      platform_desired_acceleration = 0.5*v_arm_platform_desired_acceleration.segment(0, 6);
+      platform_desired_acceleration.setZero();
+      platform_desired_acceleration.head(2) = v_arm_platform_desired_acceleration.head(2);
+      platform_desired_acceleration.tail(1) = v_arm_platform_desired_acceleration.tail(1);
 
-      arm_desired_accelaration      = 0.5*kin_constraints_ * v_arm_platform_desired_acceleration.segment(6, 6);
+      arm_desired_accelaration      = 1.0 * v_arm_platform_desired_acceleration.segment(0, 6);
 
   }
   else
@@ -410,20 +430,19 @@ void AdmittanceController::compute_admittance() {
       arm_desired_accelaration = M_a_.inverse() * ( - coupling_wrench_arm - D_a_ * arm_desired_twist_
                                + wrench_external_ + wrench_control_);
   }
-
-  
+ 
   // std::cout << " ee_pose_world_ is :\n" << ee_pose_world_ << std::endl;
   // std::cout << " ee_twist_world_ is :\n" << ee_twist_world_ << std::endl;
 
-  // std::cout << " error is :\n" << error << std::endl;
-  //  std::cout << " wrench_external_ is :\n" << wrench_external_ << std::endl;
-  //  std::cout << " internal_force_contribution is : \n"<< internal_force_contribution << std::endl; 
+  std::cout << " error is :\n" << error << std::endl;
+  std::cout << " wrench_external_ is :\n" << wrench_external_ << std::endl;
+  std::cout << " Rot_arm_base2world6x6* wrench_external_  is : \n"<<Rot_arm_base2world6x6* wrench_external_  << std::endl; 
+  std::cout << " Rot_arm_base2world is : \n"<<Rot_arm_base2world << std::endl; 
 
-  // std::cout << " v_arm_desired_acceleration is :\n" << v_arm_platform_desired_acceleration.segment(0, 6) << std::endl;
-  // std::cout << " arm_desired_accelaration is :\n" << arm_desired_accelaration << std::endl;
-
-  // std::cout << " v_platform_desired_acceleration is :\n" << kin_constraints_ *v_arm_platform_desired_acceleration.segment(6, 6) << std::endl;
-  // std::cout << " platform_desired_acceleration is :\n" << platform_desired_acceleration << std::endl;
+  std::cout << " v_arm_desired_acceleration is :\n" << v_arm_platform_desired_acceleration.segment(0, 6) << std::endl;
+ 
+  std::cout << " v_platform_desired_acceleration is :\n" << v_arm_platform_desired_acceleration.segment(6, 3) << std::endl;
+  
 
   // limiting the accelaration for better stability and safety
   // x and y for  platform and x,y,z for the arm
@@ -448,13 +467,32 @@ void AdmittanceController::compute_admittance() {
   platform_desired_twist_ += 1.0* platform_desired_acceleration * duration.toSec();
   arm_desired_twist_      += 1.0* arm_desired_accelaration      * duration.toSec();
 
+  // limiting the velocity
+  // ---------------------
+  // linear velocity
+  if(platform_desired_twist_.head(2).norm() > max_platform_lin_vel) {
+      platform_desired_twist_.head(2) *= (max_platform_lin_vel / platform_desired_twist_.head(2).norm());
+  }
+  // angular velocity
+  if(platform_desired_twist_.tail(1).norm() > max_platform_ang_vel) {
+      platform_desired_twist_.tail(1) *= (max_platform_ang_vel / platform_desired_twist_.tail(1).norm());
+  }
+  //
+  // linear velocity
+  if(arm_desired_twist_.head(3).norm() > max_arm_lin_vel) {
+      arm_desired_twist_.head(3) *= (max_arm_lin_vel / arm_desired_twist_.head(3).norm());
+  }
+  // angular velocity
+  if(platform_desired_twist_.tail(3).norm() > max_arm_ang_vel) {
+      arm_desired_twist_.tail(3) *= (max_arm_ang_vel / arm_desired_twist_.tail(3).norm());
+  }
+
   // added
-  // std::cout << " platform_desired_twist_ after is :\n " << platform_desired_twist_<< std::endl;
-  // std::cout << " arm_desired_twist_ after is :\n " << arm_desired_twist_<< std::endl;  
+  std::cout << " platform_desired_twist_ after is :\n " << platform_desired_twist_<< std::endl;
+  std::cout << " arm_desired_twist_ after is :\n " << arm_desired_twist_<< std::endl;  
   
   // std::cout << " Rot_real_obj_world_previous after is :\n " << Rot_real_obj_world_previous << std::endl;
   // std::cout << " Rot_platform2world after is :\n " << Rot_platform2world << std::endl;
-
 
 }
 
@@ -589,10 +627,10 @@ void AdmittanceController::equilibrium_callback(const geometry_msgs::PointPtr ms
 
   }
 
-        ROS_INFO_STREAM_THROTTLE(2, "New eauiibrium at : " <<
-                             equilibrium_position_(0) << " " <<
-                             equilibrium_position_(1) << " " <<
-                             equilibrium_position_(2)   );
+        ROS_INFO_STREAM_THROTTLE(2, "New equilibrium at : " <<
+                                 equilibrium_position_(0) << " " <<
+                                 equilibrium_position_(1) << " " <<
+                                 equilibrium_position_(2)   );
 
 }
 
@@ -750,8 +788,6 @@ void AdmittanceController::wait_for_transformations() {
 }
 
 
-
-
 ////////////
 /// UTIL ///
 ////////////
@@ -898,7 +934,6 @@ void AdmittanceController::publish_debuggings_signals() {
 // ==========================================================================================================================
 
 // eeObject_pose_world_callback
-
 void AdmittanceController::object_ee_pose_world_callback(const geometry_msgs::PoseStampedConstPtr msg) 
 {
   obj_real_position_world << msg->pose.position.x, 
@@ -924,7 +959,6 @@ void AdmittanceController::mid_pc_pose_mocap_world_callback(const geometry_msgs:
                                              msg->pose.orientation.w;
 
 }
-
 
 // methods for the virtual dynamics
 void AdmittanceController::compute_object_twist()
@@ -981,14 +1015,15 @@ Matrix6d AdmittanceController::get_grasp_matrix(Vector3d end_eff_position_in_obj
   grasp_matrix_obj_obj.block<3,3>(3, 0) =  skew_mx_eef_in_obj;
 
   // grasp matrix
-  Matrix6d obj_grasp_mx_world2arm_base = Rot6x6_eeffector2world * grasp_matrix_obj_obj * Rot6x6_endeffector2arm_base;
+  //Matrix6d obj_grasp_mx_world2arm_base = Rot6x6_eeffector2world * grasp_matrix_obj_obj * Rot6x6_endeffector2arm_base.transpose();
+  Matrix6d obj_grasp_mx_world2arm_base = Rot6x6_eeffector2world * grasp_matrix_obj_obj * Rot6x6_eeffector2world.transpose();
 
   return obj_grasp_mx_world2arm_base;
 
 }
 
 // compute the virtual arm Jacobian
-Matrix6_12d AdmittanceController::get_virtual_arm_Jacobian(Matrix3d Rot_arm_base2world,
+Matrix6_9d AdmittanceController::get_virtual_arm_Jacobian(Matrix3d Rot_arm_base2world,
                                                            Vector3d arm_real_position_)
 {
   //
@@ -1003,22 +1038,25 @@ Matrix6_12d AdmittanceController::get_virtual_arm_Jacobian(Matrix3d Rot_arm_base
   skew_mx_position_arm_world(2,0) = -position_arm_world(1);
   skew_mx_position_arm_world(2,1) =  position_arm_world(0);
 
+  //
+  Matrix3d CoordBasis = Eigen::MatrixXd::Identity(3,3);
+
   // Jacobian of the arm
-  Matrix6_12d a_Jacobian_arm;
+  Matrix6_9d a_Jacobian_arm;
   a_Jacobian_arm.setZero();
 
   a_Jacobian_arm.block<3,3>(0,0) = Rot_arm_base2world;  // rotation from arm_base to world frame.  w_R_p * p_R_ab
   a_Jacobian_arm.block<3,3>(3,3) = Rot_arm_base2world;  // rotation from arm_base to world frame.  w_R_p * p_R_ab
-  a_Jacobian_arm.block<3,3>(0,6) = Rot_platform2world;  // rotation from platform to world frame.  w_R_p 
-  a_Jacobian_arm.block<3,3>(0,9) = -1.0*skew_mx_position_arm_world * Rot_arm_base2world; 
-  a_Jacobian_arm.block<3,3>(3,9) = Rot_platform2world; // rotation from platform to world frame.  w_R_p
+  a_Jacobian_arm.block<3,2>(0,6) = Rot_platform2world * CoordBasis.leftCols(2);  // Rot_arm_base2world  //rotation from platform to world frame.  w_R_p 
+  a_Jacobian_arm.block<3,1>(0,8) = -1.0*skew_mx_position_arm_world * CoordBasis.rightCols(1); // Rot_arm_base2world
+  a_Jacobian_arm.block<3,1>(3,8) = CoordBasis.rightCols(1); // Rot_arm_base2world// rotation from platform to world frame.  w_R_p
 
   return a_Jacobian_arm;
 
 }
 
 // Get the sub-matrix of v_Jacobian_arm related to the platform
-Matrix6_12d AdmittanceController::get_virtual_platform_Jacobian(Matrix3d Rot_arm_base2world,
+Matrix6_9d AdmittanceController::get_virtual_platform_Jacobian(Matrix3d Rot_arm_base2world,
                                                                 Vector3d arm_real_position_)
 {
   //
@@ -1033,13 +1071,16 @@ Matrix6_12d AdmittanceController::get_virtual_platform_Jacobian(Matrix3d Rot_arm
   skew_mx_position_arm_world(2,0) = -position_arm_world(1);
   skew_mx_position_arm_world(2,1) =  position_arm_world(0);
 
+    //
+  Matrix3d CoordBasis = Eigen::MatrixXd::Identity(3,3);
+
   // Jacobian of the arm
-  Matrix6_12d a_Jacobian_platform;
+  Matrix6_9d a_Jacobian_platform;
   a_Jacobian_platform.setZero();
 
-  a_Jacobian_platform.block<3,3>(0,6) = Rot_platform2world;  // rotation from platform to world frame.  w_R_p 
-  a_Jacobian_platform.block<3,3>(0,9) = -1.0*skew_mx_position_arm_world * Rot_arm_base2world; 
-  a_Jacobian_platform.block<3,3>(3,9) = Rot_platform2world; // rotation from platform to world frame.  w_R_p
+  a_Jacobian_platform.block<3,2>(0,6) = Rot_platform2world * CoordBasis.leftCols(2);  //;  // rotation from platform to world frame.  w_R_p 
+  a_Jacobian_platform.block<3,1>(0,8) = -1.0*skew_mx_position_arm_world * CoordBasis.rightCols(1); // Rot_arm_base2world; 
+  a_Jacobian_platform.block<3,1>(3,8) = CoordBasis.rightCols(1); // Rot_platform2world; // rotation from platform to world frame.  w_R_p
 
   return a_Jacobian_platform;
 
@@ -1092,21 +1133,23 @@ void AdmittanceController::compute_virtual_torques()
     Eigen::AngleAxisd obj_des_orient_error(quat_obj_rot_error);
 
     // object pose error with axis/angle representation of the orientation
-    obj_pose_error_world.topRows(3)    = obj_real_position_world - obj_reference_position_world;
-    obj_pose_error_world.bottomRows(3) = obj_des_orient_error.axis() * obj_des_orient_error.angle();
+    // obj_pose_error_world.topRows(3)    = obj_real_position_world - obj_reference_position_world;
+    // obj_pose_error_world.bottomRows(3) = obj_des_orient_error.axis() *obj_des_orient_error.angle();  //  0.03*sin(0.2*3.14 * iter*duration.toSec());
 
+    obj_pose_error_world(0)    = obj_real_position_world(0) - obj_reference_position_world(0);
+    obj_pose_error_world(1)    = obj_real_position_world(1) - obj_reference_position_world(1); //- 0.1*sin(0.2*3.14 * iter*duration.toSec());
+    obj_pose_error_world(2)    = obj_real_position_world(2) - obj_reference_position_world(2);
+    obj_pose_error_world.bottomRows(3) = obj_des_orient_error.axis() *obj_des_orient_error.angle();  //  0.03*sin(0.2*3.14 * iter*duration.toSec());
     
-    // object twist error 
-    Vector6d obj_twist_error_world  = obj_real_twist_world - obj_reference_twist_world;   // error between current and desired twist of the object
-    
+
   // Posture state error
   // --------------------
     // pose state error
-    Vector12d v_arm_platform_posture_error;
+    Vector9d v_arm_platform_posture_error;
     v_arm_platform_posture_error.setZero();
 
     // 
-    Eigen::Quaterniond arm_equilibrium_orientation_ = equilibrium_orientation_;
+    Eigen::Quaterniond arm_equilibrium_orientation_ = initial_posture_ee_orientation;  // equilibrium_orientation_;  // To be changed to the initial posture
 
     // Orientation error w.r.t. desired equilibriums
     if (arm_equilibrium_orientation_.coeffs().dot(arm_real_orientation_.coeffs()) < 0.0) {
@@ -1118,15 +1161,23 @@ void AdmittanceController::compute_virtual_torques()
     if (quat_arm_rot_error.coeffs().norm() > 1e-3) {
         quat_arm_rot_error.coeffs() << quat_arm_rot_error.coeffs() / quat_arm_rot_error.coeffs().norm();
     }
+
     Eigen::AngleAxisd err_arm_des_orient(quat_arm_rot_error);
 
-    v_arm_platform_posture_error.segment(0, 3) = arm_real_position_ - equilibrium_position_seen_by_platform;    // To do : make it variable online
+    // v_arm_platform_posture_error.segment(0, 3) = arm_real_position_ - initial_posture_ee_position;  //equilibrium_position_seen_by_platform;    // To do : make it variable online
+    // v_arm_platform_posture_error.segment(3, 3) = err_arm_des_orient.axis() * err_arm_des_orient.angle();
+    // // v_arm_platform_posture_error.segment(6, 3) << 0.0, 0.0, 0.0;                         
+    // // v_arm_platform_posture_error.segment(9, 3) << 0.0, 0.0, 0.0;
+
+    v_arm_platform_posture_error(0) = arm_real_position_(0) - initial_posture_ee_position(0); // + 0.03*sin(0.2*3.14 * iter*duration.toSec());   //equilibrium_position_seen_by_platform;    // To do : make it variable online
+    v_arm_platform_posture_error(1) = arm_real_position_(1) - initial_posture_ee_position(1);
+    v_arm_platform_posture_error(2) = arm_real_position_(2) - initial_posture_ee_position(2);
     v_arm_platform_posture_error.segment(3, 3) = err_arm_des_orient.axis() * err_arm_des_orient.angle();
-    // v_arm_platform_posture_error.segment(6, 3) << 0.0, 0.0, 0.0;                         
-    // v_arm_platform_posture_error.segment(9, 3) << 0.0, 0.0, 0.0;
+
+    iter +=1;
 
     // posture velocity twist
-    Vector12d v_arm_platform_posture_twist;
+    Vector9d v_arm_platform_posture_twist;
     v_arm_platform_posture_twist.setZero();
     v_arm_platform_posture_twist.head(6) = arm_desired_twist_;
     
@@ -1144,8 +1195,9 @@ void AdmittanceController::compute_virtual_torques()
                                                                                 Rot_end_eff2arm_base);
 
   //MatrixXd Jacobian_object(6, v_Jacobian_arm.cols());
-    // update the v_arm Jacobian
-    v_Jacobian_arm = AdmittanceController::get_virtual_arm_Jacobian(Rot_arm_base2world, arm_real_position_);
+  // update the v_arm Jacobian and v_Jacobian_platform
+  v_Jacobian_arm = AdmittanceController::get_virtual_arm_Jacobian(Rot_arm_base2world, arm_real_position_);
+  v_Jacobian_platform = AdmittanceController::get_virtual_platform_Jacobian(Rot_arm_base2world, arm_real_position_);
 
   MatrixXd Inverse_grasp_mx_obj_world2arm_base = grasp_mx_obj_world2arm_base.inverse(); 
   MatrixXd Jacobian_object = Inverse_grasp_mx_obj_world2arm_base.transpose() * v_Jacobian_arm;
@@ -1169,18 +1221,22 @@ void AdmittanceController::compute_virtual_torques()
 
   arm_real_pose.head(3) = arm_real_position_;
   arm_real_pose.tail(3) = orientation_arm.axis() * orientation_arm.angle();
-  // update virtual bias forces
-  v_bias_forces = D_vap * v_arm_platform_desired_twist + K_vap * v_arm_platform_posture_error.segment(0, 6) - v_Jacobian_platform.transpose()* 1.0* Rot_arm_base2world6x6 * wrench_external_;
-  //v_bias_forces = D_vap * v_arm_platform_desired_twist + K_vap * arm_real_pose - v_Jacobian_platform.transpose()* 0.0 * Rot_arm_base2world6x6*wrench_external_;
 
+  // update virtual bias forces
+  // ---------------------------
+  // Update the arm and platform twist
+  v_arm_platform_desired_twist.head(6) = arm_desired_twist_;
+  v_arm_platform_desired_twist.segment(6,2) = platform_desired_twist_.head(2);
+  v_arm_platform_desired_twist.tail(1) = platform_desired_twist_.tail(1);
+
+  v_bias_forces = D_vap * v_arm_platform_desired_twist + K_vap * v_arm_platform_posture_error.segment(0, 6) + v_Jacobian_platform.transpose()* Rot_arm_base2world6x6 * wrench_external_;
+  //v_bias_forces = D_vap * v_arm_platform_desired_twist + K_vap * arm_real_pose - v_Jacobian_platform.transpose()* 0.0 * Rot_arm_base2world6x6*wrench_external_;
 
   VectorXd v_taskspace_bias_forces = v_taskspace_inertia * (Jacobian_object * Inverse_M_vap * v_bias_forces - Jacobian_object_dot * v_arm_platform_desired_twist);
   // dynamically consistent pseudoinverse of Jacobian_object
   MatrixXd Jacobian_object_harsh  = v_taskspace_inertia * Jacobian_object * Inverse_M_vap;
   // Nullspace projector operator of Jacobian_object
   MatrixXd Nullspace_Jacobian_obj = MatrixXd::Identity(Jacobian_object.cols(),Jacobian_object.cols()) - Jacobian_object.transpose() * Jacobian_object_harsh;
-
-
 
   // object augmented task space dynamics
   // -------------------------------------
@@ -1189,46 +1245,82 @@ void AdmittanceController::compute_virtual_torques()
   // object augmented bias forces (Damping + Elestic forces)      
   Vector6d obj_augmented_bias_forces  = v_taskspace_bias_forces + distributed_obj_bias_forces; 
   
-
   // compute the generalized forces
   // ===============================
   // estimate the internal force contribution
   Vector6d measured_Wrench = Rot_arm_base2world6x6 * wrench_external_;
   AdmittanceController::estimate_internal_wrench(measured_Wrench);
 
-  Vector6d object_generalized_force = obj_augmented_inertia * (obj_reference_acceleration_world - M_obj_imp_.inverse() * (D_obj_imp_ * obj_twist_error_world + K_obj_imp_ * obj_pose_error_world))
-                                      + (obj_augmented_inertia * M_obj_imp_.inverse() * - MatrixXd::Identity(6,6))* 1.0* Rot_arm_base2world6x6 * wrench_external_ 
-                                      + obj_augmented_bias_forces 
-                                      + 0.0*internal_force_contribution;  
 
+  // object twist error 
+    //Vector6d obj_twist_error_world  = obj_real_twist_world - obj_reference_twist_world;   // error between current and desired twist of the object
+  Vector6d obj_desired_twist_world  =  Jacobian_object * v_arm_platform_desired_twist;
+    Vector6d obj_twist_error_world; // error between current and desired twist of the object
+
+  obj_twist_error_world(0)        = obj_desired_twist_world(0) - obj_reference_twist_world(0) ;
+  obj_twist_error_world(1)        = obj_desired_twist_world(1) - obj_reference_twist_world(1) ; //- 0.1*0.628*cos(0.2*3.14 * iter*duration.toSec());
+  obj_twist_error_world(2)        = obj_desired_twist_world(2) - obj_reference_twist_world(2);
+  obj_twist_error_world.tail(3)   = obj_desired_twist_world.tail(3) - obj_reference_twist_world.tail(3);   
+// ==================================================================================================
+  // Vector6d object_generalized_force = obj_augmented_inertia * (obj_reference_acceleration_world - M_obj_imp_.inverse() * (D_obj_imp_ * obj_twist_error_world + K_obj_imp_ * obj_pose_error_world))
+  //                                     + (obj_augmented_inertia * M_obj_imp_.inverse() * - MatrixXd::Identity(6,6))* 1.0* Rot_arm_base2world6x6 * wrench_external_ 
+  //                                     + obj_augmented_bias_forces 
+  //                                     + 0.0*internal_force_contribution;  
+
+  // // computing the internal motion virtual torque (posture torque)
+  // // -------------------------------------------------------------
+  // // posture reference acceleration
+
+  // Vector9d v_desired_posture_accel = - 1.0*K_posture_.asDiagonal() * v_arm_platform_posture_error - D_posture_.asDiagonal() * v_arm_platform_posture_twist;
+  // //                  - D_posture_.asDiagonal() * v_arm_platform_desired_twist;
+  // Vector9d v_desired_posture_torque = M_vap* 1.0* v_desired_posture_accel + v_bias_forces;
+
+  // //posture torque                  
+  // //Vector9d v_posture_torque = M_vap * v_desired_posture_accel + v_bias_forces;
+  // Vector9d v_posture_torque = v_desired_posture_torque;
+
+  // // compute the overall torque
+  // // ==========================
+  // v_arm_platform_torque = Jacobian_object.transpose() * object_generalized_force + 1.0*Nullspace_Jacobian_obj * v_posture_torque;
+
+// =============================================================================================================
   // computing the internal motion virtual torque (posture torque)
-  // -------------------------------------------------------------
-  // posture reference acceleration
+    // -------------------------------------------------------------
+    // posture reference acceleration
+    Vector9d v_desired_posture_accel =  -1.0*K_posture_.asDiagonal() * v_arm_platform_posture_error 
+                                        - D_posture_.asDiagonal() * v_arm_platform_posture_twist;
+    //                  - D_posture_.asDiagonal() * v_arm_platform_desired_twist;
+    Vector9d v_desired_posture_torque = M_vap* (v_desired_posture_accel) + v_bias_forces;
+    //posture torque                  
+    //Vector9d v_posture_torque = -M_vap * v_desired_posture_accel + v_bias_forces;
+    Vector9d v_posture_torque = v_desired_posture_torque;
+    // compute the overall torque
+    // ==========================
+    Vector6d obj_accel_world_star = obj_reference_acceleration_world - M_obj_imp_.inverse() * ((   D_obj_imp_ * obj_twist_error_world 
+                                                                                                 + K_obj_imp_ * obj_pose_error_world)
+                                                                                                 - 0.8* Rot_arm_base2world6x6 * wrench_external_);
+    //
+    Vector6d desired_applied_wrench = distributed_obj_inertiaMx * obj_accel_world_star + distributed_obj_bias_forces - Rot_arm_base2world6x6 * wrench_external_ 
+                                      + 0.0*internal_force_contribution;
+    // overall torque                                  
+    v_arm_platform_torque = Jacobian_object.transpose() * v_taskspace_inertia * (obj_accel_world_star - Jacobian_object_dot * v_arm_platform_desired_twist) 
+                            + 0.2* Nullspace_Jacobian_obj * v_desired_posture_torque
+                            + Jacobian_object.transpose() * desired_applied_wrench;
 
-  // Vector12d v_desired_posture_accel = - K_posture_.asDiagonal() * v_arm_platform_posture_error  D_ * (arm_desired_twist_)
-  //                  - D_posture_.asDiagonal() * v_arm_platform_desired_twist;
-  Vector12d v_desired_posture_torque = -1.0* K_posture_.asDiagonal() * v_arm_platform_posture_error - D_posture_.asDiagonal() * v_arm_platform_posture_twist;
+    //
+    MatrixXd Pseudo_Jacobian_task(Jacobian_object.cols(), Jacobian_object.rows());
+    Pseudo_Jacobian_task = Jacobian_object.transpose() * (Jacobian_object * Jacobian_object.transpose()).inverse();
 
-  //posture torque                  
-  //Vector12d v_posture_torque = M_vap * v_desired_posture_accel + v_bias_forces;
-  Vector12d v_posture_torque = v_desired_posture_torque;
+    MatrixXd Nullspace_Jacobian_task(Jacobian_object.cols(), Jacobian_object.rows());
+    Nullspace_Jacobian_task = MatrixXd::Identity(Jacobian_object.cols(),Jacobian_object.cols())- Pseudo_Jacobian_task*Jacobian_object;
 
+    // v_arm_platform_torque = M_vap * (Pseudo_Jacobian_task * (obj_accel_world_star - Jacobian_object_dot * v_arm_platform_desired_twist) + 0.5*Nullspace_Jacobian_task * v_desired_posture_accel)
+    //                                 + v_bias_forces - Jacobian_object.transpose() * desired_applied_wrench;
 
-  // compute the overall torque
-  // ==========================
-  v_arm_platform_torque = Jacobian_object.transpose() * object_generalized_force + 0.0*Nullspace_Jacobian_obj * v_posture_torque;
-
-  
-  // std::cout << " object_generalized_force is : \n"<< object_generalized_force << std::endl;
-  // std::cout << " Inverse_M_vap *v_bias_forces is : \n"<< Inverse_M_vap *v_bias_forces << std::endl;
-  // std::cout << " obj_pose_error_world is : \n"<< obj_pose_error_world << std::endl; 
-
-
-  //std::cout << " v_arm_platform_posture_error.segment(0, 6) is : \n"<< v_arm_platform_posture_error.segment(0, 6) << std::endl; 
-  //std::cout << " v_desired_posture_torque is :\n" << v_desired_posture_torque << std::endl;
-
-
-
+// --------------------------------------------------------------------------------------------------------------------
+   std::cout << " obj_twist_error_world : \n"<< obj_twist_error_world  << std::endl; // 
+   std::cout << " obj_pose_error_world : \n"<<  obj_pose_error_world  << std::endl; 
+  // std::cout << " v_Jacobian_arm - Jacobian_object : \n"<< v_Jacobian_arm -  Jacobian_object << std::endl;
 
   // std::cout << desired_platform_velocity_(0)  << desired_platform_velocity_(1) << desired_platform_velocity_(2) << desired_platform_velocity_(3) << desired_platform_velocity_(4) << desired_platform_velocity_(5);
   // ROS_INFO_STREAM_THROTTLE(1, "The virtual arm torques are ~~~~~ "  << v_arm_platform_torque(0) << "\t"
@@ -1246,6 +1338,48 @@ void AdmittanceController::compute_virtual_torques()
   //                                                                         << v_arm_platform_torque(9) << "\t");
 
 
-
-
 }
+
+// test object trajectory for validation
+bool AdmittanceController::get_object_reference_trajectory()
+{
+  
+  // getting the sampling time
+  ros::Duration duration = loop_rate_.expectedCycleTime();
+  //
+  double Ax = 0.0;
+  double Ay = 0.1;
+  double Az = 0.0;
+  //
+  double fx = 1./10.;
+  double fy = 1./10.;
+  double fz = 1./10.;
+
+  // reference pose
+  obj_reference_position_world(0)    = initial_object_position_world(0) + Ax  * sin(fx*6.28 * iter*duration.toSec());
+  obj_reference_position_world(1)    = initial_object_position_world(0) + Ay  * sin(fy*6.28 * iter*duration.toSec());
+  obj_reference_position_world(2)    = initial_object_position_world(0) + Az * sin(fz*6.28 * iter*duration.toSec());
+
+  obj_reference_orientation_world     = initial_object_orientation_world;
+
+  // reference velocity
+  obj_reference_twist_world(0)       = Ax*fx*6.28*cos(fx*6.28 * iter*duration.toSec());
+  obj_reference_twist_world(1)       = Ay*fy*6.28*cos(fy*6.28 * iter*duration.toSec());
+  obj_reference_twist_world(2)       = Az*fz*6.28*cos(fz*6.28 * iter*duration.toSec());
+
+  obj_reference_twist_world.tail(3)  << 0.0, 0.0, 0.0 ;
+
+  // reference acceleration
+  obj_reference_acceleration_world(0)      = -Ax*fx*6.28*fx*6.28*sin(fx*6.28 * iter*duration.toSec());
+  obj_reference_acceleration_world(1)      = -Ay*fy*6.28*fy*6.288*sin(fy*6.28 * iter*duration.toSec());
+  obj_reference_acceleration_world(2)      = -Az*fz*6.28*fz*6.28*sin(fz*6.28 * iter*duration.toSec());
+
+  obj_reference_acceleration_world.tail(3) << 0.0, 0.0, 0.0 ;
+
+
+  iter +=1;
+
+  return true;
+  
+}
+  

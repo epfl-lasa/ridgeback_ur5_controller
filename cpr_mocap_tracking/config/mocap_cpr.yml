@@ -5,6 +5,11 @@
 #  configuration.
 
 rigid_bodies:
+    '4':
+        pose: cpr_platform/pose
+        pose2d: cpr_platform/ground_pose
+        child_frame_id: mocap_platform
+        parent_frame_id: mocap_world
     '3':
         pose: cpr_palm/pose
         pose2d: cpr_palm/ground_pose

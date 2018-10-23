@@ -81,10 +81,10 @@ typedef Matrix<double, 7, 1> Vector7d;
 typedef Matrix<double, 6, 1> Vector6d;
 typedef Matrix<double, 6, 6> Matrix6d;
 
-typedef Matrix<double, 12, 12> Matrix12d;
-typedef Matrix<double, 12, 6> Matrix12_6d;
-typedef Matrix<double, 6, 12> Matrix6_12d;
-typedef Matrix<double, 12, 1> Vector12d;
+typedef Matrix<double, 9, 9> Matrix9d;
+typedef Matrix<double, 9, 6> Matrix9_6d;
+typedef Matrix<double, 6, 9> Matrix6_9d;
+typedef Matrix<double, 9, 1> Vector9d;
 
 class AdmittanceController
 {
@@ -220,27 +220,27 @@ protected:
 
   // ===============================================================
 
-  Matrix12d M_vap, D_vap;       // virtual impedance
-  Matrix12_6d K_vap;
+  Matrix9d M_vap, D_vap;       // virtual impedance
+  Matrix9_6d K_vap;
   //Matrix6d  M_obj_, D_obj_, K_obj;  // object impedance
-  Matrix6_12d v_Jacobian_arm;
-  Matrix6_12d v_Jacobian_platform;
+  Matrix6_9d v_Jacobian_arm;
+  Matrix6_9d v_Jacobian_platform;
   //
   MatrixXd Inverse_M_vap;  // inverse of the virtual inertia matrix
 
 // 
-  Vector12d v_bias_forces;
-  Vector12d v_arm_platform_desired_acceleration;
-  Vector12d v_arm_platform_desired_twist;
-  Vector12d v_arm_platform_control_wrench;
+  Vector9d v_bias_forces;
+  Vector9d v_arm_platform_desired_acceleration;
+  Vector9d v_arm_platform_desired_twist;
+  Vector9d v_arm_platform_control_wrench;
 
 // object impedance Gain Matrices
   Matrix6d M_obj_imp_;                // virtual intertia
   Matrix6d D_obj_imp_;                // virtual damping
   Matrix6d K_obj_imp_;                // virtual stiffness
   // robot Posture Gain matrices
-  Vector12d K_posture_;               // stiffness gain 
-  Vector12d D_posture_;               // damping gain
+  Vector9d K_posture_;               // stiffness gain 
+  Vector9d D_posture_;               // damping gain
 
   // Internal Wrench Estimator
   Matrix6d K_estimator_;               // gaim matrix estimator
@@ -273,11 +273,11 @@ protected:
   Eigen::Vector3d obj_real_position_world_previous;
 
   // Object task Jacobian
-  Matrix6_12d Jacobian_object_previous;
+  Matrix6_9d Jacobian_object_previous;
   // 
   Vector6d internal_force_contribution;
   // virtual arm platform torque
-  Vector12d v_arm_platform_torque;
+  Vector9d v_arm_platform_torque;
 
   // grasp matrix
   Vector3d end_eff_position_in_object;  // Position of the end-effector in  the object frame // from the initialization file
@@ -298,6 +298,24 @@ protected:
    // Activation of the projected inverse dynamics
   bool useInverseDynamics;    
 
+  // Equilibrium define with respect to initial pose
+  // starting time equilibrium
+  Vector3d initial_posture_ee_position;
+  Quaterniond initial_posture_ee_orientation;
+
+  // for the object
+  Vector3d initial_object_position_world;
+  Quaterniond initial_object_orientation_world;
+
+  // 
+  // maximum linear and angular velocities
+  double max_arm_lin_vel;
+  double max_arm_ang_vel;
+  double max_platform_lin_vel;
+  double max_platform_ang_vel;
+
+  int iter;
+
   // ================================================================
       // methods to compute the object twist from the pose measurements
   void compute_object_twist();
@@ -309,21 +327,21 @@ protected:
                             Matrix3d Rot_end_eff2arm_base);
 
   // compute the virtual arm Jacobian
-  Matrix6_12d get_virtual_arm_Jacobian(Matrix3d Rot_arm_base2world,
+  Matrix6_9d get_virtual_arm_Jacobian(Matrix3d Rot_arm_base2world,
                                        Vector3d arm_real_position_);
 
   // // compute the sub-matrix of v_Jacobian_arm related to the platform
-  Matrix6_12d get_virtual_platform_Jacobian(Matrix3d Rot_arm_base2world,
+  Matrix6_9d get_virtual_platform_Jacobian(Matrix3d Rot_arm_base2world,
                                             Vector3d arm_real_position_);
-
 
   // Estimation of the internal wrench contribution
   // It is based on disturbance observer and uses the measured wrench at the end-effector
   void estimate_internal_wrench(Vector6d measured_Wrench); 
 
-  
   // method that compute the virtual arm-platform torque using the inverse of the apparent (virtual) dynamics
   void compute_virtual_torques();
+
+  bool get_object_reference_trajectory();
 
  
   // ================================================================

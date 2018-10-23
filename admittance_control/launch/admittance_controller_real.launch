@@ -50,7 +50,7 @@
 
   <!-- receive the grasped object pose with respect to the wordl frame defined by the mocap vision system -->
   <arg name="TOPIC_OBJECT_EE_POSE_MOCAP_WORLD"  default="/cpr_palm/pose"  />
-  <arg name="TOPIC_MID_PC_POSE_MOCAP_WORLD"  default="/cpr_mid_pc/pose"  />
+  <arg name="TOPIC_MID_PC_POSE_MOCAP_WORLD"  default="/cpr_platform/pose" />  <!--   "/cpr_mid_pc/pose"  -->
 
 
 
