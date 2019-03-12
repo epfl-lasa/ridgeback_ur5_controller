@@ -73,7 +73,7 @@ You might need to follow [these instructions](http://gazebosim.org/tutorials?tut
 To bring up the robot in simulation run
 ```
 roslaunch cpr_bringup cpr_bringup.launch
-roslaunch admittane_control admittance_controller.launch
+roslaunch admittance_control admittance_controller.launch
 ```
 For the real robot launch on the CPR main PC run
 ```
