@@ -57,12 +57,6 @@ $ sudo apt-get install ros-indigo-gazebo7-*
 ```
 You might need to follow [these instructions](http://gazebosim.org/tutorials?tut=install_ubuntu#Alternativeinstallation:step-by-step).
 
-For simulator, you use gazebo7
-```bash
-$ sudo apt-get install ros-indigo-gazebo7-*
-```
-You might need to follow [these instructions](http://gazebosim.org/tutorials?tut=install_ubuntu#Alternativeinstallation:step-by-step).
-
 ---
 ---
 
